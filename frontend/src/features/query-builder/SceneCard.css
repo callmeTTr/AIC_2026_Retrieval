@@ -1,0 +1,67 @@
+.scene-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-raised);
+}
+
+.scene-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scene-card__header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.scene-card__header strong {
+  color: var(--color-text);
+  font-size: 15px;
+}
+
+.scene-card__header span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.scene-card__delete {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  background: #fff7f7;
+  cursor: pointer;
+}
+
+.scene-card__delete:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.scene-card__delete:disabled {
+  border-color: var(--color-border);
+  color: #a8b0bd;
+  background: #f1f3f6;
+  cursor: not-allowed;
+}
+.scene-card--invalid {
+  border-color: #ef4444;
+}
+
+.scene-card__error {
+  margin: -4px 0 0;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+}
