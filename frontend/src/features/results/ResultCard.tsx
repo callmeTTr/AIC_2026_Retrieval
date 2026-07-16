@@ -1,13 +1,17 @@
+import { Maximize2 } from "lucide-react";
+
 import type { SearchResult } from "../search/search.types";
 
 import "./ResultCard.css";
 
 interface ResultCardProps {
   result: SearchResult;
+  onOpen: () => void;
 }
 
 export function ResultCard({
   result,
+  onOpen,
 }: ResultCardProps) {
   return (
     <article className="result-card">
@@ -21,6 +25,16 @@ export function ResultCard({
         <span className="result-card__rank">
           #{result.rank}
         </span>
+
+        <button
+          type="button"
+          className="result-card__open-button"
+          aria-label={`Enlarge result ${result.rank}`}
+          title="Enlarge frame"
+          onClick={onOpen}
+        >
+          <Maximize2 size={17} />
+        </button>
       </div>
 
       <div className="result-card__body">

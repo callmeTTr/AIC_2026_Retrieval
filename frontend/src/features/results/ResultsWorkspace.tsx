@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+
+import { FrameLightbox } from "../frame-viewer/FrameLightbox";
+
 import type { SearchResponse } from "../search/search.types";
 
 import { ResultCard } from "./ResultCard";
@@ -15,9 +19,16 @@ export function ResultsWorkspace({
   isLoading,
   errorMessage,
 }: ResultsWorkspaceProps) {
+  const [selectedResultIndex, setSelectedResultIndex] =
+    useState<number | null>(null);
+
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
+
+  useEffect(() => {
+    setSelectedResultIndex(null);
+  }, [response?.search_id]);
 
   return (
     <main className="results-workspace">
@@ -50,7 +61,9 @@ export function ResultsWorkspace({
       {isLoading && (
         <section className="results-workspace__message">
           <div className="results-workspace__spinner" />
+
           <h2>Searching video dataset...</h2>
+
           <p>
             Visual, OCR and ASR candidates are being
             retrieved.
@@ -86,13 +99,28 @@ export function ResultsWorkspace({
         !errorMessage &&
         hasResults && (
           <section className="results-workspace__grid">
-            {response!.results.map((result) => (
+            {response!.results.map((result, index) => (
               <ResultCard
                 key={`${result.video_id}-${result.frame_index}`}
                 result={result}
+                onOpen={() =>
+                  setSelectedResultIndex(index)
+                }
               />
             ))}
           </section>
+        )}
+
+      {response &&
+        selectedResultIndex !== null && (
+          <FrameLightbox
+            results={response.results}
+            currentIndex={selectedResultIndex}
+            onIndexChange={setSelectedResultIndex}
+            onClose={() =>
+              setSelectedResultIndex(null)
+            }
+          />
         )}
     </main>
   );
