@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.routes.frames import router as frames_router
 from app.api.routes.health import router as health_router
 from app.api.routes.search import router as search_router
 
@@ -13,4 +14,9 @@ api_router.include_router(
 api_router.include_router(
     search_router,
     tags=["Search"],
+)
+
+api_router.include_router(
+    frames_router,
+    tags=["Frames"],
 )

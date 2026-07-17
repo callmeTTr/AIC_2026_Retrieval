@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { FrameLightbox } from "../frame-viewer/FrameLightbox";
+import { NeighborFrameViewer } from "../neighbors/NeighborFrameViewer";
 
-import type { SearchResponse } from "../search/search.types";
+import type {
+  SearchResponse,
+  SearchResult,
+} from "../search/search.types";
 
 import { ResultCard } from "./ResultCard";
 
@@ -22,12 +26,16 @@ export function ResultsWorkspace({
   const [selectedResultIndex, setSelectedResultIndex] =
     useState<number | null>(null);
 
+  const [neighborResult, setNeighborResult] =
+    useState<SearchResult | null>(null);
+
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
 
   useEffect(() => {
     setSelectedResultIndex(null);
+    setNeighborResult(null);
   }, [response?.search_id]);
 
   return (
@@ -106,6 +114,9 @@ export function ResultsWorkspace({
                 onOpen={() =>
                   setSelectedResultIndex(index)
                 }
+                onBrowseNeighbors={() =>
+                  setNeighborResult(result)
+                }
               />
             ))}
           </section>
@@ -122,6 +133,13 @@ export function ResultsWorkspace({
             }
           />
         )}
+
+      {neighborResult && (
+        <NeighborFrameViewer
+          result={neighborResult}
+          onClose={() => setNeighborResult(null)}
+        />
+      )}
     </main>
   );
 }

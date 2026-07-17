@@ -1,4 +1,7 @@
-import { Maximize2 } from "lucide-react";
+import {
+  Images,
+  Maximize2,
+} from "lucide-react";
 
 import type { SearchResult } from "../search/search.types";
 
@@ -7,11 +10,13 @@ import "./ResultCard.css";
 interface ResultCardProps {
   result: SearchResult;
   onOpen: () => void;
+  onBrowseNeighbors: () => void;
 }
 
 export function ResultCard({
   result,
   onOpen,
+  onBrowseNeighbors,
 }: ResultCardProps) {
   return (
     <article className="result-card">
@@ -26,15 +31,27 @@ export function ResultCard({
           #{result.rank}
         </span>
 
-        <button
-          type="button"
-          className="result-card__open-button"
-          aria-label={`Enlarge result ${result.rank}`}
-          title="Enlarge frame"
-          onClick={onOpen}
-        >
-          <Maximize2 size={17} />
-        </button>
+        <div className="result-card__actions">
+          <button
+            type="button"
+            className="result-card__action-button"
+            title="Browse neighbor frames"
+            aria-label="Browse neighbor frames"
+            onClick={onBrowseNeighbors}
+          >
+            <Images size={17} />
+          </button>
+
+          <button
+            type="button"
+            className="result-card__action-button"
+            title="Enlarge frame"
+            aria-label="Enlarge frame"
+            onClick={onOpen}
+          >
+            <Maximize2 size={17} />
+          </button>
+        </div>
       </div>
 
       <div className="result-card__body">
