@@ -41,18 +41,25 @@ class MockRetrievalAdapter(RetrievalAdapter):
             rank = position + 1
             numeric_seed = seed + position
 
+            timestamp_seconds = round(
+                1.0
+                + (numeric_seed % 12) * 0.25,
+                3,
+            )
+
+            frame_index = round(
+                timestamp_seconds * 30
+            )
+
             candidates.append(
                 RetrievalCandidate(
                     video_id=(
                         f"{self.modality}_video_"
                         f"{numeric_seed % 12 + 1:03d}"
                     ),
-                    frame_index=(
-                        numeric_seed % 900
-                    ),
-                    timestamp_seconds=round(
-                        1.25 + (numeric_seed % 240) * 0.5,
-                        2,
+                    frame_index=frame_index,
+                    timestamp_seconds=(
+                        timestamp_seconds
                     ),
                     raw_score=round(
                         max(
