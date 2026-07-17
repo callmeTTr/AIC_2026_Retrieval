@@ -163,6 +163,8 @@ export function QuerySidebar({
           <span>Top-K per Modality</span>
 
           <input
+            id="top-k-per-modality"
+            name="topKPerModality"
             type="number"
             min="1"
             max="1000"
@@ -179,6 +181,8 @@ export function QuerySidebar({
           <span>Frames to Display</span>
 
           <input
+            id="display-result-count"
+            name="displayResultCount"
             type="number"
             min="1"
             max="500"
@@ -208,7 +212,11 @@ export function QuerySidebar({
 
       <footer className="query-sidebar__footer">
         {formError && (
-          <p className="query-sidebar__form-error">
+          <p
+            id="query-sidebar-form-error"
+            className="query-sidebar__form-error"
+            role="alert"
+          >
             {formError}
           </p>
         )}

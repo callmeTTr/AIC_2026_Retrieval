@@ -51,10 +51,15 @@ export function AppHeader({
         <span>Feedback</span>
 
         <input
+          id="search-feedback"
+          name="searchFeedback"
           type="text"
+          autoComplete="off"
           value={feedbackText}
           placeholder="Optional feedback..."
-          onChange={(event) => onFeedbackChange(event.target.value)}
+          onChange={(event) =>
+            onFeedbackChange(event.target.value)
+          }
         />
       </label>
     </header>

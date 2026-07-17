@@ -28,6 +28,18 @@ export function SceneCard({
   onChange,
   onDelete,
 }: SceneCardProps) {
+  const visualQueryId =
+    `scene-${scene.id}-visual-query`;
+
+  const ocrQueryId =
+    `scene-${scene.id}-ocr-query`;
+
+  const asrQueryId =
+    `scene-${scene.id}-asr-query`;
+
+  const errorId =
+    `scene-${scene.id}-error`;
+
   return (
     <section
       className={
@@ -59,14 +71,26 @@ export function SceneCard({
       </div>
 
       {isInvalid && (
-        <p className="scene-card__error">
+        <p
+          id={errorId}
+          className="scene-card__error"
+          role="alert"
+        >
           Enter at least one Visual, OCR or ASR query.
         </p>
       )}
 
-      <label>
+      <label htmlFor={visualQueryId}>
         <span>Visual Query</span>
+
         <textarea
+          id={visualQueryId}
+          name={`scenes.${sceneNumber}.visualQuery`}
+          autoComplete="off"
+          aria-invalid={isInvalid}
+          aria-describedby={
+            isInvalid ? errorId : undefined
+          }
           value={scene.visualQuery}
           placeholder="Describe people, objects, actions or context..."
           onChange={(event) =>
@@ -79,9 +103,17 @@ export function SceneCard({
         />
       </label>
 
-      <label>
+      <label htmlFor={ocrQueryId}>
         <span>OCR Query</span>
+
         <textarea
+          id={ocrQueryId}
+          name={`scenes.${sceneNumber}.ocrQuery`}
+          autoComplete="off"
+          aria-invalid={isInvalid}
+          aria-describedby={
+            isInvalid ? errorId : undefined
+          }
           value={scene.ocrQuery}
           placeholder="Text visible inside a video frame..."
           onChange={(event) =>
@@ -94,9 +126,17 @@ export function SceneCard({
         />
       </label>
 
-      <label>
+      <label htmlFor={asrQueryId}>
         <span>ASR Query</span>
+
         <textarea
+          id={asrQueryId}
+          name={`scenes.${sceneNumber}.asrQuery`}
+          autoComplete="off"
+          aria-invalid={isInvalid}
+          aria-describedby={
+            isInvalid ? errorId : undefined
+          }
           value={scene.asrQuery}
           placeholder="Words or dialogue spoken in the video..."
           onChange={(event) =>
