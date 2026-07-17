@@ -1,4 +1,8 @@
-import type { TaskId } from "../header/AppHeader";
+import type {
+  TaskId as HeaderTaskId,
+} from "../header/AppHeader";
+
+export type TaskId = HeaderTaskId;
 import type { QueryBuilderValue } from "../query-builder/query.types";
 
 export interface SearchSceneRequest {

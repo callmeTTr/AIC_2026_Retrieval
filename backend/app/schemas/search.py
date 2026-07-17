@@ -1,14 +1,9 @@
-from typing import Literal
+
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.task import TaskId
 
-TaskId = Literal[
-    "task_1",
-    "task_2",
-    "task_3",
-    "task_4",
-]
 
 
 class QuerySceneRequest(BaseModel):

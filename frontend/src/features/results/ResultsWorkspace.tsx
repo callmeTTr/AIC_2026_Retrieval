@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FrameLightbox } from "../frame-viewer/FrameLightbox";
 import { NeighborFrameViewer } from "../neighbors/NeighborFrameViewer";
 import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
+import { SubmissionModal } from "../submission/SubmissionModal";
 
 import type {
   SearchResponse,
@@ -33,6 +34,9 @@ export function ResultsWorkspace({
   const [videoResult, setVideoResult] =
     useState<SearchResult | null>(null);
 
+  const [submissionResult, setSubmissionResult] =
+    useState<SearchResult | null>(null);
+
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
@@ -41,6 +45,7 @@ export function ResultsWorkspace({
     setSelectedResultIndex(null);
     setNeighborResult(null);
     setVideoResult(null);
+    setSubmissionResult(null);
   }, [response?.search_id]);
 
   return (
@@ -131,6 +136,9 @@ export function ResultsWorkspace({
                   setNeighborResult(null);
                   setVideoResult(result);
                 }}
+                onSubmit={() =>
+                  setSubmissionResult(result)
+                }
               />
             ))}
           </section>
@@ -158,6 +166,16 @@ export function ResultsWorkspace({
         <VideoPlayerModal
           result={videoResult}
           onClose={() => setVideoResult(null)}
+        />
+      )}
+      {response && submissionResult && (
+        <SubmissionModal
+          task={response.task}
+          searchId={response.search_id}
+          result={submissionResult}
+          onClose={() =>
+            setSubmissionResult(null)
+          }
         />
       )}
     </main>

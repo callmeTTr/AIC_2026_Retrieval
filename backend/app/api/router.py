@@ -3,6 +3,9 @@ from fastapi import APIRouter
 from app.api.routes.frames import router as frames_router
 from app.api.routes.health import router as health_router
 from app.api.routes.search import router as search_router
+from app.api.routes.submissions import (
+    router as submissions_router,
+)
 from app.api.routes.videos import router as videos_router
 
 
@@ -26,4 +29,9 @@ api_router.include_router(
 api_router.include_router(
     videos_router,
     tags=["Videos"],
+)
+
+api_router.include_router(
+    submissions_router,
+    tags=["Submissions"],
 )

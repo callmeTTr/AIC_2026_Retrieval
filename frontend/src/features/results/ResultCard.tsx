@@ -2,6 +2,7 @@ import {
   Images,
   Maximize2,
   Play,
+  Send,
 } from "lucide-react";
 
 import type { SearchResult } from "../search/search.types";
@@ -13,6 +14,7 @@ interface ResultCardProps {
   onOpen: () => void;
   onBrowseNeighbors: () => void;
   onPlay: () => void;
+  onSubmit: () => void;
 }
 
 export function ResultCard({
@@ -20,6 +22,7 @@ export function ResultCard({
   onOpen,
   onBrowseNeighbors,
   onPlay,
+  onSubmit,
 }: ResultCardProps) {
   return (
     <article className="result-card">
@@ -53,6 +56,15 @@ export function ResultCard({
             onClick={onPlay}
           >
             <Play size={17} />
+          </button>
+          <button
+            type="button"
+            className="result-card__action-button"
+            title="Submit this result"
+            aria-label="Submit this result"
+            onClick={onSubmit}
+          >
+            <Send size={17} />
           </button>
           <button
             type="button"
