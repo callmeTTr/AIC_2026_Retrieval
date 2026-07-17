@@ -7,8 +7,11 @@ from app.retrieval import (
     ReciprocalRankFusion,
     SceneRetrievalRequest,
     SearchOrchestrator,
+    TemporalRerankContext,
+    TemporalReranker,
     reciprocal_rank_fusion,
     search_orchestrator,
+    temporal_reranker,
 )
 from app.retrieval.contracts import (
     RetrievalModality,
@@ -21,10 +24,16 @@ from app.schemas.search import (
 )
 
 
+DEFAULT_TEMPORAL_WINDOW_SECONDS = 5.0
+
+
 class SearchService:
     """
-    Convert API requests into retrieval requests and fuse
-    ranked results with Reciprocal Rank Fusion.
+    Run retrieval, RRF fusion and temporal reranking.
+
+    The default temporal implementation is currently a no-op.
+    A real temporal module can later replace it through
+    dependency injection without changing the API layer.
     """
 
     def __init__(
@@ -35,9 +44,13 @@ class SearchService:
         fusion: ReciprocalRankFusion = (
             reciprocal_rank_fusion
         ),
+        temporal: TemporalReranker = (
+            temporal_reranker
+        ),
     ) -> None:
         self._orchestrator = orchestrator
         self._fusion = fusion
+        self._temporal = temporal
 
     async def search(
         self,
@@ -59,9 +72,25 @@ class SearchService:
             scene_results
         )
 
-        selected_candidates = fused_candidates[
-            : request.options.display_result_count
-        ]
+        temporal_context = (
+            self._build_temporal_context(
+                request
+            )
+        )
+
+        reranked_candidates = (
+            self._temporal.rerank(
+                fused_candidates,
+                temporal_context,
+            )
+        )
+
+        selected_candidates = (
+            reranked_candidates[
+                : request.options
+                .display_result_count
+            ]
+        )
 
         results = [
             self._build_search_result(
@@ -145,6 +174,20 @@ class SearchService:
             )
 
         return scene_requests
+
+    @staticmethod
+    def _build_temporal_context(
+        request: SearchRequest,
+    ) -> TemporalRerankContext:
+        return TemporalRerankContext(
+            scene_ids=tuple(
+                scene.scene_id
+                for scene in request.scenes
+            ),
+            window_seconds=(
+                DEFAULT_TEMPORAL_WINDOW_SECONDS
+            ),
+        )
 
     @staticmethod
     def _build_search_result(

@@ -17,18 +17,28 @@ from app.retrieval.registry import (
     AdapterRegistry,
     adapter_registry,
 )
+from app.retrieval.temporal import (
+    NoOpTemporalReranker,
+    TemporalRerankContext,
+    TemporalReranker,
+    temporal_reranker,
+)
 
 
 __all__ = [
     "AdapterRegistry",
     "FusedCandidate",
     "ModalityQuery",
+    "NoOpTemporalReranker",
     "ReciprocalRankFusion",
     "SceneRetrievalRequest",
     "SceneRetrievalResult",
     "SearchOrchestrator",
+    "TemporalRerankContext",
+    "TemporalReranker",
     "adapter_registry",
     "reciprocal_rank_fusion",
     "register_default_adapters",
     "search_orchestrator",
+    "temporal_reranker",
 ]
