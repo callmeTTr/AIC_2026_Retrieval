@@ -10,22 +10,53 @@ from app.schemas.search import (
     SearchResult,
 )
 
+
 router = APIRouter()
 
 
-def format_timestamp(seconds: float) -> str:
-    milliseconds = int((seconds % 1) * 1000)
-    total_seconds = int(seconds)
+MOCK_RESULT_LIMIT = 12
+MOCK_VIDEO_FPS = 30
+MOCK_TIMESTAMP_START_SECONDS = 1.0
+MOCK_TIMESTAMP_STEP_SECONDS = 0.25
 
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    remaining_seconds = total_seconds % 60
+
+def format_timestamp(seconds: float) -> str:
+    total_milliseconds = round(seconds * 1000)
+
+    hours, remaining_milliseconds = divmod(
+        total_milliseconds,
+        3_600_000,
+    )
+
+    minutes, remaining_milliseconds = divmod(
+        remaining_milliseconds,
+        60_000,
+    )
+
+    remaining_seconds, milliseconds = divmod(
+        remaining_milliseconds,
+        1000,
+    )
 
     return (
         f"{hours:02d}:"
         f"{minutes:02d}:"
         f"{remaining_seconds:02d}."
         f"{milliseconds:03d}"
+    )
+
+
+def build_mock_timestamp(result_index: int) -> float:
+    """
+    Return a timestamp inside the current five-second mock video.
+
+    Replace this helper when real retrieval results are connected.
+    """
+
+    return round(
+        MOCK_TIMESTAMP_START_SECONDS
+        + result_index * MOCK_TIMESTAMP_STEP_SECONDS,
+        3,
     )
 
 
@@ -40,20 +71,30 @@ async def search_videos(
 
     result_count = min(
         request.options.display_result_count,
-        12,
+        MOCK_RESULT_LIMIT,
     )
 
     results: list[SearchResult] = []
 
     for index in range(result_count):
-        timestamp_seconds = 20.5 + index * 7.25
-        score = round(0.96 - index * 0.025, 3)
+        timestamp_seconds = build_mock_timestamp(index)
+
+        frame_index = round(
+            timestamp_seconds * MOCK_VIDEO_FPS
+        )
+
+        score = round(
+            0.96 - index * 0.025,
+            3,
+        )
+
+        first_scene = request.scenes[0]
 
         results.append(
             SearchResult(
                 rank=index + 1,
                 video_id=f"L01_V{index + 1:03d}",
-                frame_index=300 + index * 90,
+                frame_index=frame_index,
                 timestamp_seconds=timestamp_seconds,
                 timestamp_display=format_timestamp(
                     timestamp_seconds
@@ -72,19 +113,19 @@ async def search_videos(
                     visual=score,
                     ocr=(
                         round(score - 0.08, 3)
-                        if request.scenes[0].ocr_query
+                        if first_scene.ocr_query
                         else None
                     ),
                     asr=(
                         round(score - 0.12, 3)
-                        if request.scenes[0].asr_query
+                        if first_scene.asr_query
                         else None
                     ),
                 ),
             )
         )
 
-    processing_time_ms = int(
+    processing_time_ms = round(
         (perf_counter() - start_time) * 1000
     )
 

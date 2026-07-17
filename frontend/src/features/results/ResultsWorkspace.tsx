@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { FrameLightbox } from "../frame-viewer/FrameLightbox";
 import { NeighborFrameViewer } from "../neighbors/NeighborFrameViewer";
+import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
 
 import type {
   SearchResponse,
@@ -29,6 +30,9 @@ export function ResultsWorkspace({
   const [neighborResult, setNeighborResult] =
     useState<SearchResult | null>(null);
 
+  const [videoResult, setVideoResult] =
+    useState<SearchResult | null>(null);
+
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
@@ -36,6 +40,7 @@ export function ResultsWorkspace({
   useEffect(() => {
     setSelectedResultIndex(null);
     setNeighborResult(null);
+    setVideoResult(null);
   }, [response?.search_id]);
 
   return (
@@ -111,12 +116,21 @@ export function ResultsWorkspace({
               <ResultCard
                 key={`${result.video_id}-${result.frame_index}`}
                 result={result}
-                onOpen={() =>
-                  setSelectedResultIndex(index)
-                }
-                onBrowseNeighbors={() =>
-                  setNeighborResult(result)
-                }
+                onOpen={() => {
+                  setNeighborResult(null);
+                  setVideoResult(null);
+                  setSelectedResultIndex(index);
+                }}
+                onBrowseNeighbors={() => {
+                  setSelectedResultIndex(null);
+                  setVideoResult(null);
+                  setNeighborResult(result);
+                }}
+                onPlay={() => {
+                  setSelectedResultIndex(null);
+                  setNeighborResult(null);
+                  setVideoResult(result);
+                }}
               />
             ))}
           </section>
@@ -138,6 +152,12 @@ export function ResultsWorkspace({
         <NeighborFrameViewer
           result={neighborResult}
           onClose={() => setNeighborResult(null)}
+        />
+      )}
+      {videoResult && (
+        <VideoPlayerModal
+          result={videoResult}
+          onClose={() => setVideoResult(null)}
         />
       )}
     </main>

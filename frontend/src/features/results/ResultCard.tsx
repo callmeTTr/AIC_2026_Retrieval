@@ -1,6 +1,7 @@
 import {
   Images,
   Maximize2,
+  Play,
 } from "lucide-react";
 
 import type { SearchResult } from "../search/search.types";
@@ -11,12 +12,14 @@ interface ResultCardProps {
   result: SearchResult;
   onOpen: () => void;
   onBrowseNeighbors: () => void;
+  onPlay: () => void;
 }
 
 export function ResultCard({
   result,
   onOpen,
   onBrowseNeighbors,
+  onPlay,
 }: ResultCardProps) {
   return (
     <article className="result-card">
@@ -42,6 +45,15 @@ export function ResultCard({
             <Images size={17} />
           </button>
 
+          <button
+            type="button"
+            className="result-card__action-button"
+            title="Play surrounding video"
+            aria-label="Play surrounding video"
+            onClick={onPlay}
+          >
+            <Play size={17} />
+          </button>
           <button
             type="button"
             className="result-card__action-button"
