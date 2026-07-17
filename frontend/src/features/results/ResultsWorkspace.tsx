@@ -4,15 +4,23 @@ import { FrameLightbox } from "../frame-viewer/FrameLightbox";
 import { NeighborFrameViewer } from "../neighbors/NeighborFrameViewer";
 import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
 import { SubmissionModal } from "../submission/SubmissionModal";
+import { CandidateTray } from "../candidates/CandidateTray";
+import { useCandidateSelection } from "../candidates/useCandidateSelection";
 
 import type {
   SearchResponse,
   SearchResult,
+  TaskId,
 } from "../search/search.types";
 
 import { ResultCard } from "./ResultCard";
 
 import "./ResultsWorkspace.css";
+interface SubmissionTarget {
+  task: TaskId;
+  searchId: string;
+  result: SearchResult;
+}
 
 interface ResultsWorkspaceProps {
   response?: SearchResponse;
@@ -34,18 +42,28 @@ export function ResultsWorkspace({
   const [videoResult, setVideoResult] =
     useState<SearchResult | null>(null);
 
-  const [submissionResult, setSubmissionResult] =
-    useState<SearchResult | null>(null);
+  const [
+    submissionTarget,
+    setSubmissionTarget,
+  ] = useState<SubmissionTarget | null>(
+    null,
+  );
 
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
-
+  const {
+    candidates,
+    isCandidateSelected,
+    toggleCandidate,
+    removeCandidate,
+    clearCandidates,
+  } = useCandidateSelection();
   useEffect(() => {
     setSelectedResultIndex(null);
     setNeighborResult(null);
     setVideoResult(null);
-    setSubmissionResult(null);
+    setSubmissionTarget(null);
   }, [response?.search_id]);
 
   return (
@@ -121,23 +139,31 @@ export function ResultsWorkspace({
               <ResultCard
                 key={`${result.video_id}-${result.frame_index}`}
                 result={result}
-                onOpen={() => {
-                  setNeighborResult(null);
-                  setVideoResult(null);
-                  setSelectedResultIndex(index);
-                }}
-                onBrowseNeighbors={() => {
-                  setSelectedResultIndex(null);
-                  setVideoResult(null);
-                  setNeighborResult(result);
-                }}
-                onPlay={() => {
-                  setSelectedResultIndex(null);
-                  setNeighborResult(null);
-                  setVideoResult(result);
-                }}
+                onOpen={() =>
+                  setSelectedResultIndex(index)
+                }
+                onBrowseNeighbors={() =>
+                  setNeighborResult(result)
+                }
+                onPlay={() =>
+                  setVideoResult(result)
+                }
                 onSubmit={() =>
-                  setSubmissionResult(result)
+                  setSubmissionTarget({
+                    task: response!.task,
+                    searchId: response!.search_id,
+                    result,
+                  })
+                }
+                isCandidateSelected={isCandidateSelected(
+                  result,
+                )}
+                onToggleCandidate={() =>
+                  toggleCandidate(
+                    response!.task,
+                    response!.search_id,
+                    result,
+                  )
                 }
               />
             ))}
@@ -168,13 +194,25 @@ export function ResultsWorkspace({
           onClose={() => setVideoResult(null)}
         />
       )}
-      {response && submissionResult && (
+      <CandidateTray
+        candidates={candidates}
+        onRemoveCandidate={removeCandidate}
+        onClearCandidates={clearCandidates}
+        onSubmitCandidate={(candidate) =>
+          setSubmissionTarget({
+            task: candidate.task,
+            searchId: candidate.searchId,
+            result: candidate.result,
+          })
+        }
+      />
+      {submissionTarget && (
         <SubmissionModal
-          task={response.task}
-          searchId={response.search_id}
-          result={submissionResult}
+          task={submissionTarget.task}
+          searchId={submissionTarget.searchId}
+          result={submissionTarget.result}
           onClose={() =>
-            setSubmissionResult(null)
+            setSubmissionTarget(null)
           }
         />
       )}

@@ -134,3 +134,9 @@
 .result-card__action-button:hover {
   background: var(--color-primary);
 }
+.result-card__action-button--selected,
+.result-card__action-button--selected:hover {
+  border-color: #2868ec;
+  color: #ffffff;
+  background: #2868ec;
+}

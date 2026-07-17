@@ -1,4 +1,5 @@
 import {
+  Bookmark,
   Images,
   Maximize2,
   Play,
@@ -15,6 +16,8 @@ interface ResultCardProps {
   onBrowseNeighbors: () => void;
   onPlay: () => void;
   onSubmit: () => void;
+  isCandidateSelected: boolean;
+  onToggleCandidate: () => void;
 }
 
 export function ResultCard({
@@ -23,6 +26,8 @@ export function ResultCard({
   onBrowseNeighbors,
   onPlay,
   onSubmit,
+  isCandidateSelected,
+  onToggleCandidate,
 }: ResultCardProps) {
   return (
     <article className="result-card">
@@ -65,6 +70,38 @@ export function ResultCard({
             onClick={onSubmit}
           >
             <Send size={17} />
+          </button>
+          <button
+            type="button"
+            className={[
+              "result-card__action-button",
+              isCandidateSelected
+                ? "result-card__action-button--selected"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            title={
+              isCandidateSelected
+                ? "Remove from candidates"
+                : "Save as candidate"
+            }
+            aria-label={
+              isCandidateSelected
+                ? "Remove from candidates"
+                : "Save as candidate"
+            }
+            aria-pressed={isCandidateSelected}
+            onClick={onToggleCandidate}
+          >
+            <Bookmark
+              size={17}
+              fill={
+                isCandidateSelected
+                  ? "currentColor"
+                  : "none"
+              }
+            />
           </button>
           <button
             type="button"
