@@ -206,18 +206,20 @@ export function QuerySidebar({
         ))}
       </div>
 
-      {formError && (
-        <p className="query-sidebar__form-error">
-          {formError}
-        </p>
-      )}
+      <footer className="query-sidebar__footer">
+        {formError && (
+          <p className="query-sidebar__form-error">
+            {formError}
+          </p>
+        )}
 
-      <button
-        type="submit"
-        className="query-sidebar__search-button"
-      >
-        Search Video Dataset
-      </button>
+        <button
+          type="submit"
+          className="query-sidebar__search-button"
+        >
+          Search Video Dataset
+        </button>
+      </footer>
     </form>
   );
 }

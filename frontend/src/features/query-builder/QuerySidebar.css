@@ -1,12 +1,14 @@
 .query-sidebar {
+  box-sizing: border-box;
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
   padding: 20px;
   border-right: 1px solid var(--color-border);
   background: var(--color-surface);
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .query-sidebar__heading {
@@ -109,10 +111,18 @@
   color: var(--color-text-muted);
   font-size: 11px;
 }
-
+.query-sidebar__footer {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+  background: var(--color-surface);
+}
 .query-sidebar__search-button {
+  width: 100%;
   min-height: 44px;
-  margin-top: auto;
+  flex: 0 0 auto;
   border: 0;
   border-radius: 9px;
   color: #ffffff;
@@ -126,8 +136,13 @@
 }
 .query-sidebar__scenes {
   display: flex;
+  flex: 1;
+  min-height: 0;
   flex-direction: column;
   gap: 14px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 .query-sidebar__form-error {
