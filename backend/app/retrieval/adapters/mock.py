@@ -9,7 +9,8 @@ from app.retrieval.contracts import (
 
 
 SHARED_CANDIDATE_INTERVAL = 4
-
+MOCK_FAILURE_QUERY_PREFIX = "__fail_"
+MOCK_FAILURE_QUERY_SUFFIX = "__"
 MOCK_VIDEO_FPS = 30
 MOCK_TIMESTAMP_START_SECONDS = 1.0
 MOCK_TIMESTAMP_STEP_SECONDS = 0.25
@@ -43,6 +44,13 @@ class MockRetrievalAdapter(RetrievalAdapter):
 
         if not normalized_text or query.top_k <= 0:
             return []
+
+        if self._should_simulate_failure(
+            normalized_text
+        ):
+            raise RuntimeError(
+                "Simulated mock adapter failure."
+            )
 
         query_seed = self._create_query_seed(
             text=normalized_text,
@@ -120,7 +128,20 @@ class MockRetrievalAdapter(RetrievalAdapter):
             )
 
         return candidates
+    def _should_simulate_failure(
+        self,
+        normalized_text: str,
+    ) -> bool:
+        expected_query = (
+            f"{MOCK_FAILURE_QUERY_PREFIX}"
+            f"{self.modality}"
+            f"{MOCK_FAILURE_QUERY_SUFFIX}"
+        )
 
+        return (
+            normalized_text.lower()
+            == expected_query
+        )
     def _build_video_id(
         self,
         *,

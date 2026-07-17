@@ -3,9 +3,14 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from app.retrieval.contracts import (
+    RetrievalAdapter,
     RetrievalCandidate,
     RetrievalModality,
     RetrievalQuery,
+)
+from app.retrieval.issues import (
+    RetrievalIssue,
+    create_adapter_failure_issue,
 )
 from app.retrieval.registry import (
     AdapterRegistry,
@@ -32,22 +37,35 @@ class SceneRetrievalRequest:
 
 @dataclass(frozen=True, slots=True)
 class SceneRetrievalResult:
-    """Raw adapter results grouped by modality."""
+    """Raw adapter results and recoverable issues for one scene."""
 
     scene_id: int
     candidates_by_modality: dict[
         RetrievalModality,
         tuple[RetrievalCandidate, ...],
     ]
+    issues: tuple[RetrievalIssue, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class _AdapterSearchOutcome:
+    """Internal result of one adapter execution."""
+
+    modality: RetrievalModality
+    candidates: tuple[
+        RetrievalCandidate,
+        ...,
+    ]
+    issue: RetrievalIssue | None = None
 
 
 class SearchOrchestrator:
     """
     Coordinate retrieval adapters.
 
-    Each modality receives its own query text. Active
-    adapters are resolved from the registry and executed
-    concurrently.
+    Each modality receives its own query. Adapter searches run
+    concurrently. A runtime failure in one adapter is converted
+    into a warning while healthy adapters keep their results.
     """
 
     def __init__(
@@ -71,6 +89,7 @@ class SearchOrchestrator:
             return SceneRetrievalResult(
                 scene_id=request.scene_id,
                 candidates_by_modality={},
+                issues=(),
             )
 
         search_tasks = []
@@ -87,29 +106,38 @@ class SearchOrchestrator:
             )
 
             search_tasks.append(
-                adapter.search(retrieval_query)
+                self._search_adapter(
+                    adapter=adapter,
+                    query=retrieval_query,
+                )
             )
 
-        adapter_results = await asyncio.gather(
+        outcomes = await asyncio.gather(
             *search_tasks
         )
 
-        candidates_by_modality = {
-            modality_query.modality: tuple(
-                candidates
-            )
-            for modality_query, candidates in zip(
-                active_queries,
-                adapter_results,
-                strict=True,
-            )
-        }
+        candidates_by_modality: dict[
+            RetrievalModality,
+            tuple[RetrievalCandidate, ...],
+        ] = {}
+
+        issues: list[RetrievalIssue] = []
+
+        for outcome in outcomes:
+            if outcome.issue is not None:
+                issues.append(outcome.issue)
+                continue
+
+            candidates_by_modality[
+                outcome.modality
+            ] = outcome.candidates
 
         return SceneRetrievalResult(
             scene_id=request.scene_id,
             candidates_by_modality=(
                 candidates_by_modality
             ),
+            issues=tuple(issues),
         )
 
     async def search(
@@ -129,6 +157,32 @@ class SearchOrchestrator:
         )
 
         return list(results)
+
+    async def _search_adapter(
+        self,
+        *,
+        adapter: RetrievalAdapter,
+        query: RetrievalQuery,
+    ) -> _AdapterSearchOutcome:
+        try:
+            candidates = await adapter.search(
+                query
+            )
+        except Exception as error:
+            return _AdapterSearchOutcome(
+                modality=adapter.modality,
+                candidates=(),
+                issue=create_adapter_failure_issue(
+                    scene_id=query.scene_id,
+                    modality=adapter.modality,
+                    error=error,
+                ),
+            )
+
+        return _AdapterSearchOutcome(
+            modality=adapter.modality,
+            candidates=tuple(candidates),
+        )
 
     @staticmethod
     def _prepare_queries(

@@ -5,6 +5,7 @@ from app.retrieval import (
     FusedCandidate,
     ModalityQuery,
     ReciprocalRankFusion,
+    RetrievalIssue,
     SceneRetrievalRequest,
     SearchOrchestrator,
     TemporalRerankContext,
@@ -21,6 +22,7 @@ from app.schemas.search import (
     SearchRequest,
     SearchResponse,
     SearchResult,
+    SearchWarning,
 )
 
 
@@ -67,6 +69,12 @@ class SearchService:
                 scene_requests
             )
         )
+
+        retrieval_issues = [
+            issue
+            for scene_result in scene_results
+            for issue in scene_result.issues
+        ]
 
         fused_candidates = self._fusion.fuse(
             scene_results
@@ -117,7 +125,10 @@ class SearchService:
                 processing_time_ms
             ),
             total_results=len(results),
-            warnings=[],
+            warnings=[
+                self._build_search_warning(issue)
+                for issue in retrieval_issues
+            ],
             results=results,
         )
 
@@ -188,7 +199,15 @@ class SearchService:
                 DEFAULT_TEMPORAL_WINDOW_SECONDS
             ),
         )
-
+    @staticmethod
+    def _build_search_warning(
+        issue: RetrievalIssue,
+    ) -> SearchWarning:
+        return SearchWarning(
+            module=issue.module,
+            code=issue.code,
+            message=issue.message,
+        )
     @staticmethod
     def _build_search_result(
         candidate: FusedCandidate,

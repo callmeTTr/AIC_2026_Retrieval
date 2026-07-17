@@ -52,6 +52,12 @@ export function ResultsWorkspace({
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
+
+  const warnings =
+    response?.warnings ?? [];
+
+  const hasWarnings =
+    warnings.length > 0;
   const {
     candidates,
     isCandidateSelected,
@@ -88,12 +94,78 @@ export function ResultsWorkspace({
           )}
         </div>
 
-        <div className="results-workspace__status">
+        <div
+          className={[
+            "results-workspace__status",
+            hasWarnings
+              ? "results-workspace__status--warning"
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           <span className="results-workspace__status-dot" />
-          System ready
+
+          {hasWarnings
+            ? "Partial results"
+            : "System ready"}
         </div>
       </div>
+      {!isLoading &&
+        !errorMessage &&
+        hasWarnings && (
+          <section
+            className="results-workspace__warnings"
+            role="status"
+            aria-live="polite"
+          >
+            <header className="results-workspace__warnings-header">
+              <span
+                className="results-workspace__warnings-icon"
+                aria-hidden="true"
+              >
+                !
+              </span>
 
+              <div>
+                <strong>
+                  Search completed with warnings
+                </strong>
+
+                <p>
+                  Results from healthy retrieval modules
+                  are still available.
+                </p>
+              </div>
+            </header>
+
+            <ul className="results-workspace__warnings-list">
+              {warnings.map((warning, index) => (
+                <li
+                  key={[
+                    warning.module,
+                    warning.code,
+                    index,
+                  ].join("-")}
+                >
+                  <div className="results-workspace__warning-meta">
+                    <strong>
+                      {warning.module}
+                    </strong>
+
+                    <code>
+                      {warning.code}
+                    </code>
+                  </div>
+
+                  <p>
+                    {warning.message}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       {isLoading && (
         <section className="results-workspace__message">
           <div className="results-workspace__spinner" />
