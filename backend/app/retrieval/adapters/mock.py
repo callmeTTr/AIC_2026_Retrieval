@@ -8,8 +8,22 @@ from app.retrieval.contracts import (
 )
 
 
+SHARED_CANDIDATE_INTERVAL = 4
+
+MOCK_VIDEO_FPS = 30
+MOCK_TIMESTAMP_START_SECONDS = 1.0
+MOCK_TIMESTAMP_STEP_SECONDS = 0.25
+MOCK_TIMESTAMP_BUCKETS = 12
+
+
 class MockRetrievalAdapter(RetrievalAdapter):
-    """Deterministic adapter used before real retrieval modules exist."""
+    """
+    Deterministic adapter used before real retrieval modules exist.
+
+    Every fourth candidate is shared across modalities in the
+    same scene. Other candidates remain modality-specific.
+    This allows the RRF layer to demonstrate score boosting.
+    """
 
     def __init__(
         self,
@@ -30,32 +44,62 @@ class MockRetrievalAdapter(RetrievalAdapter):
         if not normalized_text or query.top_k <= 0:
             return []
 
-        seed = self._create_seed(
+        query_seed = self._create_query_seed(
             text=normalized_text,
             scene_id=query.scene_id,
         )
 
-        candidates: list[RetrievalCandidate] = []
+        candidates: list[
+            RetrievalCandidate
+        ] = []
 
         for position in range(query.top_k):
             rank = position + 1
-            numeric_seed = seed + position
+            candidate_index = position + 1
+
+            is_shared = (
+                position
+                % SHARED_CANDIDATE_INTERVAL
+                == 0
+            )
+
+            if is_shared:
+                identity_seed = (
+                    self._create_shared_seed(
+                        scene_id=query.scene_id,
+                        candidate_index=(
+                            candidate_index
+                        ),
+                    )
+                )
+            else:
+                identity_seed = (
+                    query_seed + position
+                )
 
             timestamp_seconds = round(
-                1.0
-                + (numeric_seed % 12) * 0.25,
+                MOCK_TIMESTAMP_START_SECONDS
+                + (
+                    identity_seed
+                    % MOCK_TIMESTAMP_BUCKETS
+                )
+                * MOCK_TIMESTAMP_STEP_SECONDS,
                 3,
             )
 
             frame_index = round(
-                timestamp_seconds * 30
+                timestamp_seconds
+                * MOCK_VIDEO_FPS
             )
 
             candidates.append(
                 RetrievalCandidate(
-                    video_id=(
-                        f"{self.modality}_video_"
-                        f"{numeric_seed % 12 + 1:03d}"
+                    video_id=self._build_video_id(
+                        scene_id=query.scene_id,
+                        candidate_index=(
+                            candidate_index
+                        ),
+                        is_shared=is_shared,
                     ),
                     frame_index=frame_index,
                     timestamp_seconds=(
@@ -64,7 +108,8 @@ class MockRetrievalAdapter(RetrievalAdapter):
                     raw_score=round(
                         max(
                             0.01,
-                            1.0 - position * 0.07,
+                            1.0
+                            - position * 0.007,
                         ),
                         4,
                     ),
@@ -76,8 +121,28 @@ class MockRetrievalAdapter(RetrievalAdapter):
 
         return candidates
 
-    def _create_seed(
+    def _build_video_id(
         self,
+        *,
+        scene_id: int,
+        candidate_index: int,
+        is_shared: bool,
+    ) -> str:
+        if is_shared:
+            return (
+                f"shared_video_s{scene_id:02d}_"
+                f"{candidate_index:04d}"
+            )
+
+        return (
+            f"{self.modality}_video_s"
+            f"{scene_id:02d}_"
+            f"{candidate_index:04d}"
+        )
+
+    def _create_query_seed(
+        self,
+        *,
         text: str,
         scene_id: int,
     ) -> int:
@@ -85,6 +150,24 @@ class MockRetrievalAdapter(RetrievalAdapter):
             f"{self.modality}:"
             f"{scene_id}:"
             f"{text}"
+        )
+
+        digest = sha256(
+            source.encode("utf-8")
+        ).hexdigest()
+
+        return int(digest[:8], 16)
+
+    @staticmethod
+    def _create_shared_seed(
+        *,
+        scene_id: int,
+        candidate_index: int,
+    ) -> int:
+        source = (
+            f"shared:"
+            f"{scene_id}:"
+            f"{candidate_index}"
         )
 
         digest = sha256(

@@ -2,13 +2,15 @@ from time import perf_counter
 from uuid import uuid4
 
 from app.retrieval import (
+    FusedCandidate,
     ModalityQuery,
+    ReciprocalRankFusion,
     SceneRetrievalRequest,
     SearchOrchestrator,
+    reciprocal_rank_fusion,
     search_orchestrator,
 )
 from app.retrieval.contracts import (
-    RetrievalCandidate,
     RetrievalModality,
 )
 from app.schemas.search import (
@@ -19,23 +21,10 @@ from app.schemas.search import (
 )
 
 
-MODALITY_ORDER: dict[
-    RetrievalModality,
-    int,
-] = {
-    "visual": 0,
-    "ocr": 1,
-    "asr": 2,
-}
-
-
 class SearchService:
     """
-    Convert API search requests into retrieval requests.
-
-    Fusion is intentionally not handled here yet. Raw
-    candidates are normalized into the current API response
-    contract so the frontend can continue working.
+    Convert API requests into retrieval requests and fuse
+    ranked results with Reciprocal Rank Fusion.
     """
 
     def __init__(
@@ -43,8 +32,12 @@ class SearchService:
         orchestrator: SearchOrchestrator = (
             search_orchestrator
         ),
+        fusion: ReciprocalRankFusion = (
+            reciprocal_rank_fusion
+        ),
     ) -> None:
         self._orchestrator = orchestrator
+        self._fusion = fusion
 
     async def search(
         self,
@@ -62,25 +55,11 @@ class SearchService:
             )
         )
 
-        candidates = []
-
-        for scene_result in scene_results:
-            for modality in (
-                "visual",
-                "ocr",
-                "asr",
-            ):
-                candidates.extend(
-                    scene_result
-                    .candidates_by_modality
-                    .get(modality, ())
-                )
-
-        candidates.sort(
-            key=self._candidate_sort_key
+        fused_candidates = self._fusion.fuse(
+            scene_results
         )
 
-        selected_candidates = candidates[
+        selected_candidates = fused_candidates[
             : request.options.display_result_count
         ]
 
@@ -168,42 +147,10 @@ class SearchService:
         return scene_requests
 
     @staticmethod
-    def _candidate_sort_key(
-        candidate: RetrievalCandidate,
-    ) -> tuple[
-        float,
-        int,
-        int,
-        int,
-        str,
-        int,
-    ]:
-        return (
-            -candidate.raw_score,
-            candidate.scene_id,
-            MODALITY_ORDER[
-                candidate.modality
-            ],
-            candidate.rank,
-            candidate.video_id,
-            candidate.frame_index,
-        )
-
-    @staticmethod
     def _build_search_result(
-        candidate: RetrievalCandidate,
+        candidate: FusedCandidate,
         global_rank: int,
     ) -> SearchResult:
-        modality_scores = {
-            "visual": None,
-            "ocr": None,
-            "asr": None,
-        }
-
-        modality_scores[
-            candidate.modality
-        ] = candidate.raw_score
-
         image_seed = (
             f"{candidate.video_id}-"
             f"{candidate.frame_index}"
@@ -232,12 +179,12 @@ class SearchService:
                 "https://picsum.photos/"
                 f"seed/{image_seed}/1280/720"
             ),
-            score=candidate.raw_score,
+            score=candidate.fusion_score,
             matched_scene=(
                 candidate.scene_id
             ),
             modality_scores=ModalityScores(
-                **modality_scores
+                **candidate.modality_scores
             ),
         )
 
