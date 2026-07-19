@@ -148,14 +148,6 @@ export function QuerySidebar({
 
           <h2>Query Builder</h2>
         </div>
-
-        <button
-          type="button"
-          className="query-sidebar__add-button"
-          onClick={handleAddScene}
-        >
-          + Add Scene
-        </button>
       </div>
 
       <section className="query-sidebar__settings">
@@ -208,6 +200,14 @@ export function QuerySidebar({
             onDelete={handleDeleteScene}
           />
         ))}
+
+        <button
+          type="button"
+          className="query-sidebar__add-button"
+          onClick={handleAddScene}
+        >
+          + Add Scene
+        </button>
       </div>
 
       <footer className="query-sidebar__footer">

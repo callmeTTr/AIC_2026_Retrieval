@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import {
+  useRef,
+  useState,
+} from "react";
+
+import {
+  useMutation,
+} from "@tanstack/react-query";
 
 import {
   AppHeader,
@@ -32,17 +38,25 @@ export function AppShell() {
   const [selectedTask, setSelectedTask] =
     useState<TaskId>("task_1");
 
-  const [feedbackText, setFeedbackText] =
-    useState("");
+  const feedbackTextRef =
+    useRef("");
 
   const searchMutation = useMutation({
     mutationFn: searchVideos,
   });
 
-  function handleSearch(value: QueryBuilderValue) {
+  function handleFeedbackChange(
+    value: string,
+  ) {
+    feedbackTextRef.current = value;
+  }
+
+  function handleSearch(
+    value: QueryBuilderValue,
+  ) {
     const request = createSearchRequest(
       selectedTask,
-      feedbackText,
+      feedbackTextRef.current,
       value,
     );
 
@@ -58,17 +72,22 @@ export function AppShell() {
     <div className="app-shell">
       <AppHeader
         selectedTask={selectedTask}
-        feedbackText={feedbackText}
         onTaskChange={setSelectedTask}
-        onFeedbackChange={setFeedbackText}
+        onFeedbackChange={
+          handleFeedbackChange
+        }
       />
 
       <div className="app-shell__content">
-        <QuerySidebar onSearch={handleSearch} />
+        <QuerySidebar
+          onSearch={handleSearch}
+        />
 
         <ResultsWorkspace
           response={searchMutation.data}
-          isLoading={searchMutation.isPending}
+          isLoading={
+            searchMutation.isPending
+          }
           errorMessage={errorMessage}
         />
       </div>

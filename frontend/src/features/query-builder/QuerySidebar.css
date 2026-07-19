@@ -33,11 +33,15 @@
 }
 
 .query-sidebar__add-button {
+  width: 100%;
+  min-height: 42px;
+  flex: 0 0 auto;
   padding: 8px 11px;
-  border: 1px solid var(--color-primary);
+  border: 1px dashed var(--color-primary);
   border-radius: 8px;
   color: var(--color-primary);
   background: transparent;
+  font-weight: 700;
   cursor: pointer;
 }
 
