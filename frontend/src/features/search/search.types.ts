@@ -58,19 +58,28 @@ export interface SearchResponse {
 
 export function createSearchRequest(
   task: TaskId,
-  feedback: string,
   queryBuilder: QueryBuilderValue,
 ): SearchRequest {
   return {
     task,
-    feedback: feedback.trim(),
 
-    scenes: queryBuilder.scenes.map((scene, index) => ({
-      scene_id: index + 1,
-      visual_query: scene.visualQuery.trim(),
-      ocr_query: scene.ocrQuery.trim(),
-      asr_query: scene.asrQuery.trim(),
-    })),
+    // Kept temporarily for compatibility with
+    // the current backend SearchRequest schema.
+    // Result-level feedback will use a separate
+    // refinement endpoint.
+    feedback: "",
+
+    scenes: queryBuilder.scenes.map(
+      (scene, index) => ({
+        scene_id: index + 1,
+        visual_query:
+          scene.visualQuery.trim(),
+        ocr_query:
+          scene.ocrQuery.trim(),
+        asr_query:
+          scene.asrQuery.trim(),
+      }),
+    ),
 
     options: {
       top_k_per_modality:

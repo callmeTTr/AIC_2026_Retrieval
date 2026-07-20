@@ -1,11 +1,5 @@
-import {
-  useRef,
-  useState,
-} from "react";
-
-import {
-  useMutation,
-} from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import {
   AppHeader,
@@ -30,7 +24,13 @@ import {
 
 import {
   createSearchRequest,
+  type SearchRequest,
+  type SearchResponse,
 } from "../features/search/search.types";
+
+import type {
+  RefinementResponse,
+} from "../features/refinement/refinement.types";
 
 import "./AppShell.css";
 
@@ -38,29 +38,55 @@ export function AppShell() {
   const [selectedTask, setSelectedTask] =
     useState<TaskId>("task_1");
 
-  const feedbackTextRef =
-    useRef("");
+  const [
+    originalRequest,
+    setOriginalRequest,
+  ] = useState<SearchRequest | null>(null);
+
+  const [
+    activeResponse,
+    setActiveResponse,
+  ] = useState<
+    SearchResponse | RefinementResponse | undefined
+  >(undefined);
+
+  const [
+    refinementIteration,
+    setRefinementIteration,
+  ] = useState(0);
 
   const searchMutation = useMutation({
     mutationFn: searchVideos,
-  });
 
-  function handleFeedbackChange(
-    value: string,
-  ) {
-    feedbackTextRef.current = value;
-  }
+    onSuccess: (
+      response,
+      request,
+    ) => {
+      setOriginalRequest(request);
+      setActiveResponse(response);
+      setRefinementIteration(0);
+    },
+  });
 
   function handleSearch(
     value: QueryBuilderValue,
   ) {
     const request = createSearchRequest(
       selectedTask,
-      feedbackTextRef.current,
       value,
     );
 
     searchMutation.mutate(request);
+  }
+
+  function handleRefinementComplete(
+    response: RefinementResponse,
+  ) {
+    setActiveResponse(response);
+
+    setRefinementIteration(
+      response.refinement_iteration,
+    );
   }
 
   const errorMessage =
@@ -73,9 +99,6 @@ export function AppShell() {
       <AppHeader
         selectedTask={selectedTask}
         onTaskChange={setSelectedTask}
-        onFeedbackChange={
-          handleFeedbackChange
-        }
       />
 
       <div className="app-shell__content">
@@ -84,11 +107,20 @@ export function AppShell() {
         />
 
         <ResultsWorkspace
-          response={searchMutation.data}
+          response={activeResponse}
+          originalRequest={
+            originalRequest ?? undefined
+          }
+          refinementIteration={
+            refinementIteration
+          }
           isLoading={
             searchMutation.isPending
           }
           errorMessage={errorMessage}
+          onRefinementComplete={
+            handleRefinementComplete
+          }
         />
       </div>
     </div>

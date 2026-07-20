@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 
-import { FrameLightbox } from "../frame-viewer/FrameLightbox";
-import { NeighborFrameViewer } from "../neighbors/NeighborFrameViewer";
-import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
-import { SubmissionModal } from "../submission/SubmissionModal";
 import { CandidateTray } from "../candidates/CandidateTray";
 import { useCandidateSelection } from "../candidates/useCandidateSelection";
+import { FrameLightbox } from "../frame-viewer/FrameLightbox";
+import { NeighborFrameViewer } from "../neighbors/NeighborFrameViewer";
+import { RefinementModal } from "../refinement/RefinementModal";
+import type { RefinementResponse } from "../refinement/refinement.types";
+import { SubmissionModal } from "../submission/SubmissionModal";
+import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
 
 import type {
+  SearchRequest,
   SearchResponse,
   SearchResult,
   TaskId,
@@ -16,6 +19,7 @@ import type {
 import { ResultCard } from "./ResultCard";
 
 import "./ResultsWorkspace.css";
+
 interface SubmissionTarget {
   task: TaskId;
   searchId: string;
@@ -24,23 +28,42 @@ interface SubmissionTarget {
 
 interface ResultsWorkspaceProps {
   response?: SearchResponse;
+  originalRequest?: SearchRequest;
+  refinementIteration: number;
   isLoading: boolean;
   errorMessage?: string;
+  onRefinementComplete: (
+    response: RefinementResponse,
+  ) => void;
 }
 
 export function ResultsWorkspace({
   response,
+  originalRequest,
+  refinementIteration,
   isLoading,
   errorMessage,
+  onRefinementComplete,
 }: ResultsWorkspaceProps) {
-  const [selectedResultIndex, setSelectedResultIndex] =
-    useState<number | null>(null);
+  const [
+    selectedResultIndex,
+    setSelectedResultIndex,
+  ] = useState<number | null>(null);
 
-  const [neighborResult, setNeighborResult] =
-    useState<SearchResult | null>(null);
+  const [
+    neighborResult,
+    setNeighborResult,
+  ] = useState<SearchResult | null>(null);
 
-  const [videoResult, setVideoResult] =
-    useState<SearchResult | null>(null);
+  const [
+    videoResult,
+    setVideoResult,
+  ] = useState<SearchResult | null>(null);
+
+  const [
+    refinementResult,
+    setRefinementResult,
+  ] = useState<SearchResult | null>(null);
 
   const [
     submissionTarget,
@@ -58,6 +81,7 @@ export function ResultsWorkspace({
 
   const hasWarnings =
     warnings.length > 0;
+
   const {
     candidates,
     isCandidateSelected,
@@ -65,10 +89,12 @@ export function ResultsWorkspace({
     removeCandidate,
     clearCandidates,
   } = useCandidateSelection();
+
   useEffect(() => {
     setSelectedResultIndex(null);
     setNeighborResult(null);
     setVideoResult(null);
+    setRefinementResult(null);
     setSubmissionTarget(null);
   }, [response?.search_id]);
 
@@ -86,10 +112,13 @@ export function ResultsWorkspace({
             <p>
               {response.total_results} results in{" "}
               {response.processing_time_ms} ms
+              {refinementIteration > 0 &&
+                ` · Refinement ${refinementIteration}`}
             </p>
           ) : (
             <p>
-              Run a query to display matching keyframes.
+              Run a query to display matching
+              keyframes.
             </p>
           )}
         </div>
@@ -111,6 +140,7 @@ export function ResultsWorkspace({
             : "System ready"}
         </div>
       </div>
+
       {!isLoading &&
         !errorMessage &&
         hasWarnings && (
@@ -133,48 +163,53 @@ export function ResultsWorkspace({
                 </strong>
 
                 <p>
-                  Results from healthy retrieval modules
-                  are still available.
+                  Results from healthy retrieval
+                  modules are still available.
                 </p>
               </div>
             </header>
 
             <ul className="results-workspace__warnings-list">
-              {warnings.map((warning, index) => (
-                <li
-                  key={[
-                    warning.module,
-                    warning.code,
-                    index,
-                  ].join("-")}
-                >
-                  <div className="results-workspace__warning-meta">
-                    <strong>
-                      {warning.module}
-                    </strong>
+              {warnings.map(
+                (warning, index) => (
+                  <li
+                    key={[
+                      warning.module,
+                      warning.code,
+                      index,
+                    ].join("-")}
+                  >
+                    <div className="results-workspace__warning-meta">
+                      <strong>
+                        {warning.module}
+                      </strong>
 
-                    <code>
-                      {warning.code}
-                    </code>
-                  </div>
+                      <code>
+                        {warning.code}
+                      </code>
+                    </div>
 
-                  <p>
-                    {warning.message}
-                  </p>
-                </li>
-              ))}
+                    <p>
+                      {warning.message}
+                    </p>
+                  </li>
+                ),
+              )}
             </ul>
           </section>
         )}
+
       {isLoading && (
         <section className="results-workspace__message">
           <div className="results-workspace__spinner" />
 
-          <h2>Searching video dataset...</h2>
+          <h2>
+            Searching video dataset...
+          </h2>
 
           <p>
-            Visual, OCR and ASR candidates are being
-            retrieved.
+            Visual, OCR and ASR candidates are
+            being retrieved.
           </p>
         </section>
       )}
@@ -197,8 +232,9 @@ export function ResultsWorkspace({
             <h2>No results yet</h2>
 
             <p>
-              Configure one or more query scenes and press
-              Search Video Dataset.
+              Configure one or more query
+              scenes and press Search Video
+              Dataset.
             </p>
           </section>
         )}
@@ -207,38 +243,46 @@ export function ResultsWorkspace({
         !errorMessage &&
         hasResults && (
           <section className="results-workspace__grid">
-            {response!.results.map((result, index) => (
-              <ResultCard
-                key={`${result.video_id}-${result.frame_index}`}
-                result={result}
-                onOpen={() =>
-                  setSelectedResultIndex(index)
-                }
-                onBrowseNeighbors={() =>
-                  setNeighborResult(result)
-                }
-                onPlay={() =>
-                  setVideoResult(result)
-                }
-                onSubmit={() =>
-                  setSubmissionTarget({
-                    task: response!.task,
-                    searchId: response!.search_id,
+            {response!.results.map(
+              (result, index) => (
+                <ResultCard
+                  key={`${result.video_id}-${result.frame_index}`}
+                  result={result}
+                  onOpen={() =>
+                    setSelectedResultIndex(
+                      index,
+                    )
+                  }
+                  onBrowseNeighbors={() =>
+                    setNeighborResult(result)
+                  }
+                  onPlay={() =>
+                    setVideoResult(result)
+                  }
+                  onSubmit={() =>
+                    setSubmissionTarget({
+                      task: response!.task,
+                      searchId:
+                        response!.search_id,
+                      result,
+                    })
+                  }
+                  onRefine={() =>
+                    setRefinementResult(result)
+                  }
+                  isCandidateSelected={isCandidateSelected(
                     result,
-                  })
-                }
-                isCandidateSelected={isCandidateSelected(
-                  result,
-                )}
-                onToggleCandidate={() =>
-                  toggleCandidate(
-                    response!.task,
-                    response!.search_id,
-                    result,
-                  )
-                }
-              />
-            ))}
+                  )}
+                  onToggleCandidate={() =>
+                    toggleCandidate(
+                      response!.task,
+                      response!.search_id,
+                      result,
+                    )
+                  }
+                />
+              ),
+            )}
           </section>
         )}
 
@@ -246,8 +290,12 @@ export function ResultsWorkspace({
         selectedResultIndex !== null && (
           <FrameLightbox
             results={response.results}
-            currentIndex={selectedResultIndex}
-            onIndexChange={setSelectedResultIndex}
+            currentIndex={
+              selectedResultIndex
+            }
+            onIndexChange={
+              setSelectedResultIndex
+            }
             onClose={() =>
               setSelectedResultIndex(null)
             }
@@ -257,37 +305,78 @@ export function ResultsWorkspace({
       {neighborResult && (
         <NeighborFrameViewer
           result={neighborResult}
-          onClose={() => setNeighborResult(null)}
+          onClose={() =>
+            setNeighborResult(null)
+          }
         />
       )}
+
       {videoResult && (
         <VideoPlayerModal
           result={videoResult}
-          onClose={() => setVideoResult(null)}
+          onClose={() =>
+            setVideoResult(null)
+          }
         />
       )}
+
       <CandidateTray
         candidates={candidates}
-        onRemoveCandidate={removeCandidate}
-        onClearCandidates={clearCandidates}
-        onSubmitCandidate={(candidate) =>
+        onRemoveCandidate={
+          removeCandidate
+        }
+        onClearCandidates={
+          clearCandidates
+        }
+        onSubmitCandidate={(
+          candidate,
+        ) =>
           setSubmissionTarget({
             task: candidate.task,
-            searchId: candidate.searchId,
+            searchId:
+              candidate.searchId,
             result: candidate.result,
           })
         }
       />
+
       {submissionTarget && (
         <SubmissionModal
           task={submissionTarget.task}
-          searchId={submissionTarget.searchId}
-          result={submissionTarget.result}
+          searchId={
+            submissionTarget.searchId
+          }
+          result={
+            submissionTarget.result
+          }
           onClose={() =>
             setSubmissionTarget(null)
           }
         />
       )}
+
+      {refinementResult &&
+        response &&
+        originalRequest && (
+          <RefinementModal
+            originalRequest={
+              originalRequest
+            }
+            parentSearchId={
+              response.search_id
+            }
+            refinementIteration={
+              refinementIteration + 1
+            }
+            result={refinementResult}
+            onRefinementComplete={
+              onRefinementComplete
+            }
+            onClose={() =>
+              setRefinementResult(null)
+            }
+          />
+        )}
     </main>
   );
 }

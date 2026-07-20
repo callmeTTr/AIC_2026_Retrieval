@@ -139,4 +139,31 @@
   border-color: #2868ec;
   color: #ffffff;
   background: #2868ec;
+}.result-card__refine-button {
+  width: 100%;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 0 12px;
+  border: 1px solid #bfd1fa;
+  border-radius: 8px;
+  color: #1d5ddd;
+  background: #f4f7ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.result-card__refine-button:hover {
+  border-color: var(--color-primary);
+  color: #ffffff;
+  background: var(--color-primary);
 }

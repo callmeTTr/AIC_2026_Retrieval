@@ -4,6 +4,7 @@ import {
   Maximize2,
   Play,
   Send,
+  Sparkles,
 } from "lucide-react";
 
 import type { SearchResult } from "../search/search.types";
@@ -16,6 +17,7 @@ interface ResultCardProps {
   onBrowseNeighbors: () => void;
   onPlay: () => void;
   onSubmit: () => void;
+  onRefine: () => void;
   isCandidateSelected: boolean;
   onToggleCandidate: () => void;
 }
@@ -26,6 +28,7 @@ export function ResultCard({
   onBrowseNeighbors,
   onPlay,
   onSubmit,
+  onRefine,
   isCandidateSelected,
   onToggleCandidate,
 }: ResultCardProps) {
@@ -140,6 +143,15 @@ export function ResultCard({
             <dd>{result.matched_scene}</dd>
           </div>
         </dl>
+
+        <button
+          type="button"
+          className="result-card__refine-button"
+          onClick={onRefine}
+        >
+          <Sparkles size={16} />
+          Refine from this frame
+        </button>
       </div>
     </article>
   );

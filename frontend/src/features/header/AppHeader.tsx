@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import "./AppHeader.css";
 
 export type TaskId =
@@ -11,7 +9,6 @@ export type TaskId =
 interface AppHeaderProps {
   selectedTask: TaskId;
   onTaskChange: (task: TaskId) => void;
-  onFeedbackChange: (value: string) => void;
 }
 
 const tasks: Array<{
@@ -27,16 +24,7 @@ const tasks: Array<{
 export function AppHeader({
   selectedTask,
   onTaskChange,
-  onFeedbackChange,
 }: AppHeaderProps) {
-  const [feedbackText, setFeedbackText] =
-    useState("");
-
-  function handleFeedbackChange(value: string) {
-    setFeedbackText(value);
-    onFeedbackChange(value);
-  }
-
   return (
     <header className="app-header">
       <div className="app-header__brand">
@@ -73,24 +61,6 @@ export function AppHeader({
           </button>
         ))}
       </nav>
-
-      <label className="app-header__feedback">
-        <span>Feedback</span>
-
-        <input
-          id="search-feedback"
-          name="searchFeedback"
-          type="text"
-          autoComplete="off"
-          value={feedbackText}
-          placeholder="Optional feedback..."
-          onChange={(event) =>
-            handleFeedbackChange(
-              event.target.value,
-            )
-          }
-        />
-      </label>
     </header>
   );
 }
