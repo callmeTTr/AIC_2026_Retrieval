@@ -5,9 +5,16 @@ import {
   Play,
   Send,
   Sparkles,
+  VideoOff,
 } from "lucide-react";
 
-import type { SearchResult } from "../search/search.types";
+import {
+  resolveBackendUrl,
+} from "../../services/apiClient";
+
+import type {
+  SearchResult,
+} from "../search/search.types";
 
 import "./ResultCard.css";
 
@@ -32,17 +39,57 @@ export function ResultCard({
   isCandidateSelected,
   onToggleCandidate,
 }: ResultCardProps) {
+  const thumbnailUrl =
+    resolveBackendUrl(
+      result.thumbnail_url,
+    );
+
+  const videoTitle =
+    result.video_available
+      ? `Open ${result.video_id} at ${result.timestamp_seconds.toFixed(3)} seconds`
+      : `Original video ${result.video_id} is unavailable`;
+
   return (
     <article className="result-card">
       <div className="result-card__image-wrapper">
-        <img
-          src={result.thumbnail_url}
-          alt={`Result ${result.rank} from ${result.video_id}`}
-          loading="lazy"
-        />
+        <button
+          type="button"
+          className="result-card__frame-button"
+          title={videoTitle}
+          aria-label={videoTitle}
+          onClick={onPlay}
+        >
+          <img
+            src={thumbnailUrl}
+            alt={`Result ${result.rank} from ${result.video_id}`}
+            loading="lazy"
+            decoding="async"
+          />
+        </button>
 
         <span className="result-card__rank">
           #{result.rank}
+        </span>
+
+        <span
+          className={[
+            "result-card__video-status",
+            result.video_available
+              ? "result-card__video-status--available"
+              : "result-card__video-status--missing",
+          ].join(" ")}
+        >
+          {result.video_available ? (
+            <>
+              <Play size={13} />
+              {result.timestamp_seconds.toFixed(3)}s
+            </>
+          ) : (
+            <>
+              <VideoOff size={13} />
+              Video missing
+            </>
+          )}
         </span>
 
         <div className="result-card__actions">
@@ -59,12 +106,17 @@ export function ResultCard({
           <button
             type="button"
             className="result-card__action-button"
-            title="Play surrounding video"
-            aria-label="Play surrounding video"
+            title={videoTitle}
+            aria-label={videoTitle}
             onClick={onPlay}
           >
-            <Play size={17} />
+            {result.video_available ? (
+              <Play size={17} />
+            ) : (
+              <VideoOff size={17} />
+            )}
           </button>
+
           <button
             type="button"
             className="result-card__action-button"
@@ -74,6 +126,7 @@ export function ResultCard({
           >
             <Send size={17} />
           </button>
+
           <button
             type="button"
             className={[
@@ -106,6 +159,7 @@ export function ResultCard({
               }
             />
           </button>
+
           <button
             type="button"
             className="result-card__action-button"

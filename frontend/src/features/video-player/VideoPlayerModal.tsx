@@ -1,10 +1,23 @@
-import { useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import type { SearchResult } from "../search/search.types";
+import {
+  AlertTriangle,
+  RotateCcw,
+  X,
+} from "lucide-react";
 
-import { getVideoClip } from "./video.api";
+import {
+  resolveBackendUrl,
+} from "../../services/apiClient";
+
+import type {
+  SearchResult,
+} from "../search/search.types";
 
 import "./VideoPlayerModal.css";
 
@@ -13,36 +26,66 @@ interface VideoPlayerModalProps {
   onClose: () => void;
 }
 
+type PlaybackState =
+  | "loading"
+  | "seeking"
+  | "ready"
+  | "error";
+
 export function VideoPlayerModal({
   result,
   onClose,
 }: VideoPlayerModalProps) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef =
+    useRef<HTMLVideoElement | null>(null);
 
-  const clipQuery = useQuery({
-    queryKey: [
-      "video-clip",
-      result.video_id,
-      result.timestamp_seconds,
-    ],
+  const [playbackState, setPlaybackState] =
+    useState<PlaybackState>("loading");
 
-    queryFn: () =>
-      getVideoClip(
-        result.video_id,
-        result.timestamp_seconds,
-        1,
-        1,
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
+
+  const [actualSeekTime, setActualSeekTime] =
+    useState<number | null>(null);
+
+  const targetTimestamp = Math.max(
+    0,
+    result.timestamp_seconds,
+  );
+
+  const videoUrl = useMemo(
+    () =>
+      resolveBackendUrl(
+        result.video_url,
       ),
-  });
+    [result.video_url],
+  );
+
+  const posterUrl = useMemo(
+    () =>
+      resolveBackendUrl(
+        result.frame_url,
+      ),
+    [result.frame_url],
+  );
+
+  const missingVideo =
+    !result.video_available ||
+    !videoUrl;
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    function handleKeyDown(
+      event: KeyboardEvent,
+    ) {
       if (event.key === "Escape") {
         onClose();
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
 
     return () => {
       window.removeEventListener(
@@ -50,68 +93,102 @@ export function VideoPlayerModal({
         handleKeyDown,
       );
 
-      const video = videoRef.current;
+      const video =
+        videoRef.current;
 
       if (video) {
         video.pause();
+        video.removeAttribute("src");
+        video.load();
       }
     };
   }, [onClose]);
 
+  useEffect(() => {
+    setPlaybackState("loading");
+    setErrorMessage(null);
+    setActualSeekTime(null);
+  }, [
+    result.video_id,
+    result.timestamp_seconds,
+    result.video_url,
+  ]);
+
   function handleBackdropClick(
     event: React.MouseEvent<HTMLDivElement>,
   ) {
-    if (event.target === event.currentTarget) {
+    if (
+      event.target ===
+      event.currentTarget
+    ) {
       onClose();
     }
   }
 
-  function handleLoadedMetadata() {
-    const video = videoRef.current;
-    const clip = clipQuery.data;
-
-    if (!video || !clip) {
-      return;
-    }
-
-    const maximumStartTime = Math.max(
-      0,
-      video.duration - 0.1,
-    );
-
-    video.currentTime = Math.min(
-      clip.start_time,
-      maximumStartTime,
-    );
-  }
-
-  function handleTimeUpdate() {
-    const video = videoRef.current;
-    const clip = clipQuery.data;
-
-    if (!video || !clip) {
-      return;
-    }
-
-    if (video.currentTime >= clip.end_time) {
-      video.pause();
-      video.currentTime = Math.min(
-        clip.end_time,
+  function seekToResultTimestamp(
+    video: HTMLVideoElement,
+  ) {
+    if (
+      !Number.isFinite(
         video.duration,
+      )
+    ) {
+      setPlaybackState("error");
+
+      setErrorMessage(
+        "The browser could not read the video duration.",
       );
-    }
-  }
 
-  async function replayClip() {
-    const video = videoRef.current;
-    const clip = clipQuery.data;
-
-    if (!video || !clip) {
       return;
     }
 
-    video.pause();
-    video.currentTime = clip.start_time;
+    if (
+      targetTimestamp >
+      video.duration
+    ) {
+      setPlaybackState("error");
+
+      setErrorMessage(
+        `Frame timestamp ${targetTimestamp.toFixed(3)}s ` +
+          `is beyond video duration ${video.duration.toFixed(3)}s. ` +
+          "Check the frame-to-video mapping.",
+      );
+
+      return;
+    }
+
+    setPlaybackState("seeking");
+
+    // Không dùng fastSeek vì nó có thể
+    // chỉ nhảy đến keyframe gần nhất.
+    video.currentTime =
+      targetTimestamp;
+  }
+
+  function handleLoadedMetadata() {
+    const video =
+      videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    seekToResultTimestamp(video);
+  }
+
+  async function handleSeeked() {
+    const video =
+      videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    setActualSeekTime(
+      video.currentTime,
+    );
+
+    setPlaybackState("ready");
 
     try {
       await video.play();
@@ -119,14 +196,79 @@ export function VideoPlayerModal({
       if (
         error instanceof DOMException &&
         (
-          error.name === "AbortError" ||
-          error.name === "NotAllowedError"
+          error.name ===
+            "NotAllowedError" ||
+          error.name ===
+            "AbortError"
         )
       ) {
         return;
       }
 
-      console.error("Unable to replay video:", error);
+      console.error(
+        "Unable to autoplay video:",
+        error,
+      );
+    }
+  }
+
+  function handleVideoError() {
+    const mediaError =
+      videoRef.current?.error;
+
+    const messages: Record<
+      number,
+      string
+    > = {
+      1: "Video loading was aborted.",
+      2: "A network error occurred while loading video.",
+      3: "The video could not be decoded. The codec may not be browser-compatible.",
+      4: "The video source is unsupported or unavailable.",
+    };
+
+    setPlaybackState("error");
+
+    setErrorMessage(
+      mediaError
+        ? messages[
+            mediaError.code
+          ] ??
+            "The video could not be played."
+        : "The video could not be played.",
+    );
+  }
+
+  async function replayFromFrame() {
+    const video =
+      videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    setErrorMessage(null);
+
+    seekToResultTimestamp(video);
+
+    try {
+      await video.play();
+    } catch (error) {
+      if (
+        error instanceof DOMException &&
+        (
+          error.name ===
+            "NotAllowedError" ||
+          error.name ===
+            "AbortError"
+        )
+      ) {
+        return;
+      }
+
+      console.error(
+        "Unable to replay video:",
+        error,
+      );
     }
   }
 
@@ -136,16 +278,26 @@ export function VideoPlayerModal({
       role="dialog"
       aria-modal="true"
       aria-label={`Video player for ${result.video_id}`}
-      onMouseDown={handleBackdropClick}
+      onMouseDown={
+        handleBackdropClick
+      }
     >
       <div className="video-player-modal__panel">
         <header className="video-player-modal__header">
           <div>
-            <strong>Surrounding Video</strong>
+            <strong>
+              Original Video
+            </strong>
 
             <span>
-              {result.video_id} · Frame{" "}
-              {result.frame_index}
+              {result.video_id}
+              {" · "}
+              Frame {result.frame_index}
+              {" · "}
+              {targetTimestamp.toFixed(
+                3,
+              )}
+              s
             </span>
           </div>
 
@@ -158,73 +310,134 @@ export function VideoPlayerModal({
           </button>
         </header>
 
-        {clipQuery.isPending && (
-          <section className="video-player-modal__message">
-            Loading video clip...
-          </section>
-        )}
-
-        {clipQuery.isError && (
+        {missingVideo ? (
           <section className="video-player-modal__message video-player-modal__message--error">
-            {clipQuery.error.message}
-          </section>
-        )}
+            <AlertTriangle
+              size={22}
+            />
 
-        {clipQuery.data && (
+            <div>
+              <strong>
+                Original video not found
+              </strong>
+
+              <p>
+                Backend chưa map được{" "}
+                <code>
+                  {result.video_id}
+                </code>{" "}
+                với video gốc.
+              </p>
+            </div>
+          </section>
+        ) : (
           <>
             <section className="video-player-modal__content">
               <video
                 ref={videoRef}
-                key={clipQuery.data.video_url}
-                src={clipQuery.data.video_url}
+                key={[
+                  result.video_id,
+                  targetTimestamp,
+                  videoUrl,
+                ].join("-")}
+                src={videoUrl}
                 controls
                 playsInline
-                preload="auto"
-                poster={
-                  clipQuery.data.poster_url ??
-                  undefined
-                }
+                preload="metadata"
+                poster={posterUrl}
                 onLoadedMetadata={
                   handleLoadedMetadata
                 }
-                onTimeUpdate={handleTimeUpdate}
+                onSeeked={
+                  handleSeeked
+                }
+                onError={
+                  handleVideoError
+                }
               >
-                Your browser does not support video.
+                Your browser does not
+                support video.
               </video>
+
+              {playbackState ===
+                "loading" && (
+                <div className="video-player-modal__overlay-message">
+                  Loading video
+                  metadata...
+                </div>
+              )}
+
+              {playbackState ===
+                "seeking" && (
+                <div className="video-player-modal__overlay-message">
+                  Seeking to{" "}
+                  {targetTimestamp.toFixed(
+                    3,
+                  )}
+                  s...
+                </div>
+              )}
             </section>
+
+            {errorMessage && (
+              <section className="video-player-modal__message video-player-modal__message--error">
+                <AlertTriangle
+                  size={22}
+                />
+
+                <span>
+                  {errorMessage}
+                </span>
+              </section>
+            )}
 
             <footer className="video-player-modal__footer">
               <div>
                 <span>Video</span>
 
                 <strong>
-                  {clipQuery.data.video_id}
+                  {result.video_id}
                 </strong>
               </div>
 
               <div>
-                <span>Clip range</span>
+                <span>
+                  Target timestamp
+                </span>
 
                 <strong>
-                  {clipQuery.data.start_time.toFixed(1)}s
-                  {" → "}
-                  {clipQuery.data.end_time.toFixed(1)}s
+                  {targetTimestamp.toFixed(
+                    3,
+                  )}
+                  s
                 </strong>
               </div>
 
               <div>
-                <span>Search timestamp</span>
+                <span>
+                  Browser position
+                </span>
 
                 <strong>
-                  {result.timestamp_display}
+                  {actualSeekTime ===
+                  null
+                    ? "—"
+                    : `${actualSeekTime.toFixed(
+                        3,
+                      )}s`}
                 </strong>
               </div>
 
               <button
                 type="button"
-                onClick={replayClip}
+                onClick={
+                  replayFromFrame
+                }
               >
-                Replay clip
+                <RotateCcw
+                  size={16}
+                />
+                Replay from frame
               </button>
             </footer>
           </>
