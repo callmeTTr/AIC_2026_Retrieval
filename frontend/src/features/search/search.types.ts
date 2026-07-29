@@ -24,6 +24,7 @@ export interface SearchRequest {
   options: {
     top_k_per_modality: number;
     display_result_count: number;
+    use_query_rewrite?: boolean;
   };
 }
 
@@ -38,6 +39,12 @@ export interface SearchResult {
   video_id: string;
 
   frame_index: number;
+
+  /**
+   * Opaque reference do live backend cấp.
+   * Dùng để chọn frame làm reference cho iterative feedback.
+   */
+  frame_ref: string | null;
 
   timestamp_seconds: number;
   timestamp_display: string;
@@ -116,6 +123,8 @@ export function createSearchRequest(
 
       display_result_count:
         queryBuilder.displayResultCount,
+
+      use_query_rewrite: true,
     },
   };
 }

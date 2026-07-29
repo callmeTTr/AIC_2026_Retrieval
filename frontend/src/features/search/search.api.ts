@@ -30,6 +30,8 @@ interface LiveSearchResult {
   time?: string;
   image_url?: string;
 
+  frame_ref?: string | null;
+
   video_id: string;
 
   video_url?: string | null;
@@ -207,6 +209,10 @@ function normalizeResult(
 
     frame_index: frameIndex,
 
+    frame_ref:
+      result.frame_ref?.trim() ||
+      null,
+
     timestamp_seconds:
       timestampSeconds,
 
@@ -294,12 +300,45 @@ export async function searchVideos(
         },
 
         body: JSON.stringify({
-          query:
-            visualQuery,
+          task:
+            request.task,
 
-          top_k:
-            request.options
-              .top_k_per_modality,
+          feedback:
+            request.feedback,
+
+          /**
+           * Branch này cố ý chạy Visual-only.
+           * Không gửi OCR/ASR vào visual query reconstruction.
+           */
+          scenes: [
+            {
+              scene_id:
+                request.scenes[
+                  visualSceneIndex
+                ].scene_id,
+
+              visual_query:
+                visualQuery,
+
+              ocr_query: "",
+              asr_query: "",
+            },
+          ],
+
+          options: {
+            top_k_per_modality:
+              request.options
+                .top_k_per_modality,
+
+            display_result_count:
+              request.options
+                .display_result_count,
+
+            use_query_rewrite:
+              request.options
+                .use_query_rewrite ??
+              true,
+          },
         }),
       },
     );
