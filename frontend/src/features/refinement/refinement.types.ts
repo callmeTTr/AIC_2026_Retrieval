@@ -4,75 +4,110 @@ import type {
   SearchResult,
 } from "../search/search.types";
 
-export interface RefinementReferenceResult {
-  video_id: string;
-  frame_index: number;
-  timestamp_seconds: number;
-  thumbnail_url: string;
-  frame_url: string;
-}
-
 export interface RefinementRequest {
+  /**
+   * Chỉ dùng nội bộ frontend để giữ đúng task
+   * khi backend không trả task trong response.
+   */
   task: SearchRequest["task"];
-  parent_search_id: string;
-  refinement_iteration: number;
-  reference_result: RefinementReferenceResult;
+
+  search_id: string;
+  selected_frame_ref: string;
   feedback: string;
-  original_scenes: SearchRequest["scenes"];
-  options: SearchRequest["options"];
+  top_k: number;
+  display_result_count: number;
 }
 
+export interface FeedbackHistoryEntry {
+  turn: number;
+  feedback: string;
+  reconstructed_state: Record<string, unknown>;
+}
+
+/**
+ * Contract nội bộ của frontend.
+ *
+ * Live backend trả `iteration`, nhưng AppShell hiện
+ * đang dùng `refinement_iteration`. API adapter sẽ
+ * normalize field đó trước khi trả về UI.
+ */
 export interface RefinementResponse
   extends SearchResponse {
   parent_search_id: string;
   refinement_iteration: number;
+
+  original_query?: string;
+  reconstructed_query?: string;
+  query_state?: Record<string, unknown>;
+  feedback_history?: FeedbackHistoryEntry[];
 }
 
 interface CreateRefinementRequestInput {
   originalRequest: SearchRequest;
   parentSearchId: string;
-  refinementIteration: number;
+
+
+
   referenceResult: SearchResult;
   feedback: string;
 }
 
-export function createRefinementRequest({
-  originalRequest,
-  parentSearchId,
-  refinementIteration,
-  referenceResult,
-  feedback,
-}: CreateRefinementRequestInput): RefinementRequest {
+export function createRefinementRequest(
+  input: CreateRefinementRequestInput,
+): RefinementRequest {
+  const {
+    originalRequest,
+    parentSearchId,
+    referenceResult,
+    feedback,
+  } = input;
+
+  const searchId =
+    parentSearchId.trim();
+
+  const selectedFrameRef =
+    referenceResult.frame_ref?.trim();
+
+  const normalizedFeedback =
+    feedback.trim();
+
+  if (!searchId) {
+    throw new Error(
+      "The active search session is missing.",
+    );
+  }
+
+  if (!selectedFrameRef) {
+    throw new Error(
+      "This result does not contain a live frame reference. Run a new search and try again.",
+    );
+  }
+
+  if (!normalizedFeedback) {
+    throw new Error(
+      "Enter feedback before refining the results.",
+    );
+  }
+
   return {
-    task: originalRequest.task,
+    task:
+      originalRequest.task,
 
-    parent_search_id: parentSearchId,
+    search_id:
+      searchId,
 
-    refinement_iteration:
-      refinementIteration,
+    selected_frame_ref:
+      selectedFrameRef,
 
-    reference_result: {
-      video_id: referenceResult.video_id,
-      frame_index:
-        referenceResult.frame_index,
-      timestamp_seconds:
-        referenceResult.timestamp_seconds,
-      thumbnail_url:
-        referenceResult.thumbnail_url,
-      frame_url: referenceResult.frame_url,
-    },
+    feedback:
+      normalizedFeedback,
 
-    feedback: feedback.trim(),
+    top_k:
+      originalRequest.options
+        .top_k_per_modality,
 
-    original_scenes:
-      originalRequest.scenes.map(
-        (scene) => ({
-          ...scene,
-        }),
-      ),
-
-    options: {
-      ...originalRequest.options,
-    },
+    display_result_count:
+      originalRequest.options
+        .display_result_count,
   };
 }

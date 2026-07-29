@@ -64,6 +64,10 @@ export function RefinementModal({
   const normalizedFeedback =
     feedbackText.trim();
 
+  const hasLiveFrameReference =
+    Boolean(
+      result.frame_ref?.trim(),
+    );
   useEffect(() => {
     function handleKeyDown(
       event: KeyboardEvent,
@@ -94,7 +98,10 @@ export function RefinementModal({
   ) {
     event.preventDefault();
 
-    if (!normalizedFeedback) {
+    if (
+      !normalizedFeedback ||
+      !hasLiveFrameReference
+    ) {
       return;
     }
 
@@ -102,7 +109,6 @@ export function RefinementModal({
       createRefinementRequest({
         originalRequest,
         parentSearchId,
-        refinementIteration,
         referenceResult: result,
         feedback: normalizedFeedback,
       }),
@@ -223,9 +229,16 @@ export function RefinementModal({
           </label>
 
           <p className="refinement-modal__notice">
-            This currently uses deterministic mock
-            reranking. A semantic image-text model
-            will replace the mock service later.
+            {hasLiveFrameReference
+              ? (
+                  "The selected frame and your feedback " +
+                  "will be used for live iterative retrieval."
+                )
+              : (
+                  "This result does not contain a live frame " +
+                  "reference. Run a new feedback-ready search " +
+                  "before refining."
+                )}
           </p>
 
           {refinementMutation.isError && (
@@ -255,7 +268,8 @@ export function RefinementModal({
             className="refinement-modal__button refinement-modal__button--primary"
             disabled={
               isRefining ||
-              !normalizedFeedback
+              !normalizedFeedback ||
+              !hasLiveFrameReference
             }
           >
             {isRefining ? (

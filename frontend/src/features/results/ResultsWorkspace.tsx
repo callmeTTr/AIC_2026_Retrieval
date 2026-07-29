@@ -96,7 +96,10 @@ export function ResultsWorkspace({
     setVideoResult(null);
     setRefinementResult(null);
     setSubmissionTarget(null);
-  }, [response?.search_id]);
+  }, [
+    response?.search_id,
+    refinementIteration,
+  ]);
 
   return (
     <main className="results-workspace">

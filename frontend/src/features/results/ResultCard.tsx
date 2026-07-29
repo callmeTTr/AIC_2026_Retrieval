@@ -49,6 +49,11 @@ export function ResultCard({
       ? `Open ${result.video_id} at ${result.timestamp_seconds.toFixed(3)} seconds`
       : `Original video ${result.video_id} is unavailable`;
 
+  const canRefine =
+    Boolean(
+      result.frame_ref?.trim(),
+    );
+
   return (
     <article className="result-card">
       <div className="result-card__image-wrapper">
@@ -201,6 +206,12 @@ export function ResultCard({
         <button
           type="button"
           className="result-card__refine-button"
+          disabled={!canRefine}
+          title={
+            canRefine
+              ? "Refine results from this frame"
+              : "Run a new feedback-ready search before refining"
+          }
           onClick={onRefine}
         >
           <Sparkles size={16} />
