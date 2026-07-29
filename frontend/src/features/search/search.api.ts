@@ -15,6 +15,12 @@ interface LiveModalityScores {
   asr?: number | null;
 }
 
+interface ActiveModalities {
+  visual: boolean;
+  ocr: boolean;
+  asr: boolean;
+}
+
 interface LiveSearchResult {
   // Contract mới
   rank?: number;
@@ -128,6 +134,7 @@ function formatTimestamp(
 function normalizeResult(
   result: LiveSearchResult,
   matchedScene: number,
+  activeModalities: ActiveModalities,
 ): SearchResult {
   const rank =
     result.rank ??
@@ -245,17 +252,35 @@ function normalizeResult(
       visual:
         result.modality_scores
           ?.visual ??
-        result.score,
+        (
+          activeModalities.visual &&
+          !activeModalities.ocr &&
+          !activeModalities.asr
+            ? result.score
+            : null
+        ),
 
       ocr:
         result.modality_scores
           ?.ocr ??
-        null,
+        (
+          activeModalities.ocr &&
+          !activeModalities.visual &&
+          !activeModalities.asr
+            ? result.score
+            : null
+        ),
 
       asr:
         result.modality_scores
           ?.asr ??
-        null,
+        (
+          activeModalities.asr &&
+          !activeModalities.visual &&
+          !activeModalities.ocr
+            ? result.score
+            : null
+        ),
     },
   };
 }
@@ -263,24 +288,46 @@ function normalizeResult(
 export async function searchVideos(
   request: SearchRequest,
 ): Promise<SearchResponse> {
-  const visualSceneIndex =
+  const activeSceneIndex =
     request.scenes.findIndex(
       (scene) =>
-        scene.visual_query
-          .trim()
-          .length > 0,
+        Boolean(
+          scene.visual_query.trim() ||
+          scene.ocr_query.trim(),
+        ),
     );
 
-  if (visualSceneIndex < 0) {
+  if (activeSceneIndex < 0) {
     throw new Error(
-      "The live retrieval server currently requires a Visual Query.",
+      "Enter at least one Visual or OCR query.",
     );
   }
 
-  const visualQuery =
+  const activeScene =
     request.scenes[
-      visualSceneIndex
-    ].visual_query.trim();
+      activeSceneIndex
+    ];
+
+  const visualQuery =
+    activeScene.visual_query.trim();
+
+  const ocrQuery =
+    activeScene.ocr_query.trim();
+
+  const activeModalities:
+    ActiveModalities = {
+    visual:
+      visualQuery.length > 0,
+
+    ocr:
+      ocrQuery.length > 0,
+
+    /**
+     * ASR chưa được bật trên branch này.
+     */
+    asr:
+      false,
+  };
 
   const startedAt =
     performance.now();
@@ -306,21 +353,28 @@ export async function searchVideos(
           feedback:
             request.feedback,
 
-          /**
-           * Branch này cố ý chạy Visual-only.
-           * Không gửi OCR/ASR vào visual query reconstruction.
-           */
           scenes: [
             {
               scene_id:
-                request.scenes[
-                  visualSceneIndex
-                ].scene_id,
+                activeScene.scene_id,
 
+              /**
+               * Backend tự reconstruct Visual Query
+               * sang tiếng Anh khi được bật.
+               */
               visual_query:
                 visualQuery,
 
-              ocr_query: "",
+              /**
+               * OCR giữ nguyên tiếng Việt và được
+               * tìm riêng bằng SQLite FTS5.
+               */
+              ocr_query:
+                ocrQuery,
+
+              /**
+               * ASR tạm thời chưa tích hợp.
+               */
               asr_query: "",
             },
           ],
@@ -357,7 +411,9 @@ export async function searchVideos(
     liveResponse.data;
 
   if (
-    !Array.isArray(sourceResults)
+    !Array.isArray(
+      sourceResults,
+    )
   ) {
     throw new Error(
       "The live retrieval server returned an invalid response.",
@@ -377,7 +433,8 @@ export async function searchVideos(
       .map((result) =>
         normalizeResult(
           result,
-          visualSceneIndex + 1,
+          activeSceneIndex + 1,
+          activeModalities,
         ),
       );
 
@@ -399,6 +456,7 @@ export async function searchVideos(
       ),
 
     total_results:
+      liveResponse.total_results ??
       results.length,
 
     warnings:
