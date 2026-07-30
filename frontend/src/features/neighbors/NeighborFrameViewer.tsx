@@ -1,11 +1,25 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
-import type { SearchResult } from "../search/search.types";
+import {
+  ExternalLink,
+  X,
+} from "lucide-react";
 
-import { getNeighborFrames } from "./neighbor.api";
-import type { NeighborFrame } from "./neighbor.types";
+import type {
+  SearchResult,
+} from "../search/search.types";
+
+import {
+  getEmbeddedNeighborFrames,
+} from "./neighbor.api";
+
+import type {
+  NeighborFrame,
+} from "./neighbor.types";
 
 import "./NeighborFrameViewer.css";
 
@@ -18,48 +32,88 @@ export function NeighborFrameViewer({
   result,
   onClose,
 }: NeighborFrameViewerProps) {
-  const [selectedFrameIndex, setSelectedFrameIndex] =
-    useState(result.frame_index);
+  const neighborData =
+    useMemo(
+      () =>
+        getEmbeddedNeighborFrames(
+          result,
+        ),
+      [result],
+    );
 
-  const neighborQuery = useQuery({
-    queryKey: [
-      "neighbor-frames",
-      result.video_id,
+  const initialFrame =
+    neighborData.frames.find(
+      (frame) => frame.is_center,
+    ) ??
+    neighborData.frames[0];
+
+  const [
+    selectedFrameIndex,
+    setSelectedFrameIndex,
+  ] = useState(
+    initialFrame?.frame_index ??
       result.frame_index,
-    ],
-    queryFn: () =>
-      getNeighborFrames(
-        result.video_id,
-        result.frame_index,
-        20,
-        20,
-      ),
-  });
+  );
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    const centerFrame =
+      result.neighbors.find(
+        (frame) => frame.is_center,
+      ) ??
+      result.neighbors[0];
+
+    setSelectedFrameIndex(
+      centerFrame?.frame_index ??
+        result.frame_index,
+    );
+  }, [
+    result.frame_index,
+    result.neighbors,
+    result.video_id,
+  ]);
+
+  useEffect(() => {
+    function handleKeyDown(
+      event: KeyboardEvent,
+    ) {
       if (event.key === "Escape") {
         onClose();
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
     };
   }, [onClose]);
 
-  const selectedFrame: NeighborFrame | undefined =
-    neighborQuery.data?.frames.find(
+  const selectedFrame:
+    NeighborFrame | undefined =
+    neighborData.frames.find(
       (frame) =>
-        frame.frame_index === selectedFrameIndex,
-    );
+        frame.frame_index ===
+        selectedFrameIndex,
+    ) ??
+    neighborData.frames.find(
+      (frame) => frame.is_center,
+    ) ??
+    neighborData.frames[0];
 
   function handleBackdropClick(
-    event: React.MouseEvent<HTMLDivElement>,
+    event:
+      React.MouseEvent<HTMLDivElement>,
   ) {
-    if (event.target === event.currentTarget) {
+    if (
+      event.target ===
+      event.currentTarget
+    ) {
       onClose();
     }
   }
@@ -70,94 +124,184 @@ export function NeighborFrameViewer({
       role="dialog"
       aria-modal="true"
       aria-label={`Neighbor frames for ${result.video_id}`}
-      onMouseDown={handleBackdropClick}
+      onMouseDown={
+        handleBackdropClick
+      }
     >
       <div className="neighbor-viewer__panel">
         <header className="neighbor-viewer__header">
           <div>
-            <strong>Neighbor Frames</strong>
+            <strong>
+              Neighbor Frames
+            </strong>
 
             <span>
-              {result.video_id} · Center frame{" "}
+              {result.video_id}
+              {" · "}
+              Center frame{" "}
               {result.frame_index}
+              {" · "}
+              {neighborData.before} before
+              {" / "}
+              {neighborData.after} after
             </span>
           </div>
 
-          <button
-            type="button"
-            aria-label="Close neighbor viewer"
-            onClick={onClose}
+          <nav
+            className="neighbor-viewer__actions"
+            aria-label="Neighbor frame actions"
           >
-            <X size={20} />
-          </button>
+            {selectedFrame
+              ?.kaggle_output_url && (
+              <a
+                className="neighbor-viewer__kaggle-link"
+                href={
+                  selectedFrame
+                    .kaggle_output_url
+                }
+                target="_blank"
+                rel="noreferrer"
+                title={
+                  selectedFrame
+                    .kaggle_relative_path
+                    ? `Open Kaggle Output: ${selectedFrame.kaggle_relative_path}`
+                    : "Open the Kaggle Output containing this frame"
+                }
+              >
+                <ExternalLink
+                  size={16}
+                />
+
+                <span>
+                  Open Kaggle Output
+                </span>
+              </a>
+            )}
+
+            <button
+              type="button"
+              aria-label="Close neighbor viewer"
+              onClick={onClose}
+            >
+              <X size={20} />
+            </button>
+          </nav>
         </header>
 
-        {neighborQuery.isPending && (
+        {neighborData.total_frames ===
+          0 && (
           <section className="neighbor-viewer__message">
-            Loading neighbor frames...
+            No neighbor frames were
+            returned for this result.
           </section>
         )}
 
-        {neighborQuery.isError && (
-          <section className="neighbor-viewer__message neighbor-viewer__message--error">
-            {neighborQuery.error.message}
-          </section>
-        )}
-
-        {neighborQuery.data && selectedFrame && (
+        {selectedFrame && (
           <>
             <section className="neighbor-viewer__preview">
               <img
-                src={selectedFrame.frame_url}
+                src={
+                  selectedFrame.frame_url
+                }
                 alt={`Frame ${selectedFrame.frame_index}`}
+                decoding="async"
               />
 
               <div>
                 <strong>
-                  Frame {selectedFrame.frame_index}
+                  Frame{" "}
+                  {
+                    selectedFrame.frame_index
+                  }
                 </strong>
 
                 <span>
-                  {selectedFrame.timestamp_display}
+                  {
+                    selectedFrame.timestamp_display
+                  }
                 </span>
 
+                {selectedFrame.shot_id !==
+                  null && (
+                  <span>
+                    Shot{" "}
+                    {
+                      selectedFrame.shot_id
+                    }
+                  </span>
+                )}
+
+                {selectedFrame
+                  .kaggle_relative_path && (
+                  <span
+                    className="neighbor-viewer__source-path"
+                    title={
+                      selectedFrame
+                        .kaggle_relative_path
+                    }
+                  >
+                    {
+                      selectedFrame
+                        .kaggle_relative_path
+                    }
+                  </span>
+                )}
+
                 {selectedFrame.is_center && (
-                  <em>Original search result</em>
+                  <em>
+                    Original search result
+                  </em>
                 )}
               </div>
             </section>
 
             <section className="neighbor-viewer__timeline">
-              {neighborQuery.data.frames.map((frame) => (
-                <button
-                  key={frame.frame_index}
-                  type="button"
-                  className={[
-                    "neighbor-viewer__thumbnail",
-                    frame.is_center
-                      ? "neighbor-viewer__thumbnail--center"
-                      : "",
-                    selectedFrameIndex === frame.frame_index
-                      ? "neighbor-viewer__thumbnail--selected"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() =>
-                    setSelectedFrameIndex(
-                      frame.frame_index,
-                    )
-                  }
-                >
-                  <img
-                    src={frame.thumbnail_url}
-                    alt={`Frame ${frame.frame_index}`}
-                    loading="lazy"
-                  />
+              {neighborData.frames.map(
+                (frame) => (
+                  <button
+                    key={
+                      frame.frame_ref ??
+                      [
+                        frame.video_id,
+                        frame.frame_index,
+                      ].join("-")
+                    }
+                    type="button"
+                    className={[
+                      "neighbor-viewer__thumbnail",
 
-                  <span>{frame.frame_index}</span>
-                </button>
-              ))}
+                      frame.is_center
+                        ? "neighbor-viewer__thumbnail--center"
+                        : "",
+
+                      selectedFrameIndex ===
+                      frame.frame_index
+                        ? "neighbor-viewer__thumbnail--selected"
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() =>
+                      setSelectedFrameIndex(
+                        frame.frame_index,
+                      )
+                    }
+                  >
+                    <img
+                      src={
+                        frame.thumbnail_url
+                      }
+                      alt={`Frame ${frame.frame_index}`}
+                      loading="lazy"
+                      decoding="async"
+                    />
+
+                    <span>
+                      {frame.frame_index}
+                    </span>
+                  </button>
+                ),
+              )}
             </section>
           </>
         )}

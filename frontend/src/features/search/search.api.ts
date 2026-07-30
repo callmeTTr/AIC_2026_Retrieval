@@ -8,11 +8,34 @@ import type {
   SearchResponse,
   SearchResult,
 } from "./search.types";
+import type {
+  NeighborFrame,
+} from "../neighbors/neighbor.types";
 
 interface LiveModalityScores {
   visual?: number | null;
   ocr?: number | null;
   asr?: number | null;
+}
+
+interface LiveNeighborFrame {
+  frame_ref?: string | null;
+
+  video_id?: string;
+  frame_index?: number;
+
+  timestamp_seconds?: number;
+  timestamp_display?: string;
+
+  image_url?: string;
+  thumbnail_url?: string;
+  frame_url?: string;
+
+  shot_id?: number | null;
+  is_center?: boolean;
+
+  kaggle_output_url?: string | null;
+  kaggle_relative_path?: string | null;
 }
 
 interface ActiveModalities {
@@ -47,6 +70,11 @@ interface LiveSearchResult {
   matched_scene?: number;
 
   modality_scores?: LiveModalityScores;
+
+  kaggle_output_url?: string | null;
+  kaggle_relative_path?: string | null;
+
+  neighbors?: LiveNeighborFrame[];
 }
 
 interface LiveSearchResponse {
@@ -131,7 +159,75 @@ function formatTimestamp(
       .toString()
       .padStart(3, "0")}`;
 }
+function normalizeNeighborFrame(
+  frame: LiveNeighborFrame,
+  fallbackVideoId: string,
+): NeighborFrame | null {
+  const imageSource =
+    frame.frame_url ??
+    frame.thumbnail_url ??
+    frame.image_url;
 
+  if (
+    frame.frame_index === undefined ||
+    frame.timestamp_seconds === undefined ||
+    !imageSource
+  ) {
+    return null;
+  }
+
+  const imageUrl =
+    resolveBackendUrl(imageSource);
+
+  if (!imageUrl) {
+    return null;
+  }
+
+  return {
+    frame_ref:
+      frame.frame_ref?.trim() ||
+      null,
+
+    video_id:
+      frame.video_id ??
+      fallbackVideoId,
+
+    frame_index:
+      frame.frame_index,
+
+    timestamp_seconds:
+      frame.timestamp_seconds,
+
+    timestamp_display:
+      frame.timestamp_display ??
+      formatTimestamp(
+        frame.timestamp_seconds,
+      ),
+
+    thumbnail_url:
+      imageUrl,
+
+    frame_url:
+      imageUrl,
+
+    shot_id:
+      frame.shot_id ??
+      null,
+
+    is_center:
+      Boolean(frame.is_center),
+
+    kaggle_output_url:
+      frame.kaggle_output_url
+        ?.trim() ||
+      null,
+
+    kaggle_relative_path:
+      frame.kaggle_relative_path
+        ?.trim() ||
+      null,
+  };
+}
 function normalizeResult(
   result: LiveSearchResult,
   matchedScene: number,
@@ -210,7 +306,20 @@ function normalizeResult(
       result.video_available ??
       true
     );
-
+  const neighbors =
+    (result.neighbors ?? [])
+      .map((frame) =>
+        normalizeNeighborFrame(
+          frame,
+          result.video_id,
+        ),
+      )
+      .filter(
+        (
+          frame,
+        ): frame is NeighborFrame =>
+          frame !== null,
+      );
   return {
     rank,
     video_id: result.video_id,
@@ -235,6 +344,18 @@ function normalizeResult(
 
     frame_url:
       frameUrl,
+
+    kaggle_output_url:
+      result.kaggle_output_url
+        ?.trim() ||
+      null,
+
+    kaggle_relative_path:
+      result.kaggle_relative_path
+        ?.trim() ||
+      null,
+
+    neighbors,
 
     video_url:
       videoUrl,
@@ -393,6 +514,16 @@ export async function searchVideos(
               request.options
                 .use_query_rewrite ??
               true,
+
+            include_neighbors:
+              request.options
+                .include_neighbors ??
+              true,
+
+            neighbor_radius:
+              request.options
+                .neighbor_radius ??
+              3,
           },
         }),
       },

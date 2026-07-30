@@ -6,6 +6,10 @@ import type {
   QueryBuilderValue,
 } from "../query-builder/query.types";
 
+import type {
+  NeighborFrame,
+} from "../neighbors/neighbor.types";
+
 export type TaskId = HeaderTaskId;
 
 export interface SearchSceneRequest {
@@ -25,6 +29,8 @@ export interface SearchRequest {
     top_k_per_modality: number;
     display_result_count: number;
     use_query_rewrite?: boolean;
+    include_neighbors?: boolean;
+    neighbor_radius?: number;
   };
 }
 
@@ -52,6 +58,10 @@ export interface SearchResult {
   thumbnail_url: string;
   frame_url: string;
 
+  kaggle_output_url?: string | null;
+  kaggle_relative_path?: string | null;
+
+  neighbors: NeighborFrame[];
   /**
    * URL stream video do backend trả về.
    *
@@ -127,6 +137,9 @@ export function createSearchRequest(
 
       use_query_rewrite:
         queryBuilder.useQueryRewrite,
+
+      include_neighbors: true,
+      neighbor_radius: 3,
     },
   };
 }

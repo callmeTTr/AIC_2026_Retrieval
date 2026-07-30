@@ -34,10 +34,10 @@ export function QuerySidebar({
   onSearch,
 }: QuerySidebarProps) {
   const [topKPerModality, setTopKPerModality] =
-    useState(100);
+    useState(20);
 
   const [displayResultCount, setDisplayResultCount] =
-    useState(100);
+    useState(20);
 
   const [useQueryRewrite, setUseQueryRewrite] =
     useState(true);

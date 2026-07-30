@@ -40,6 +40,32 @@
   font-size: 12px;
 }
 
+.neighbor-viewer__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neighbor-viewer__kaggle-link {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 9px;
+  color: #ffffff;
+  background: rgb(255 255 255 / 8%);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.neighbor-viewer__kaggle-link:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
 .neighbor-viewer__header button {
   width: 38px;
   height: 38px;
@@ -148,4 +174,14 @@
 
 .neighbor-viewer__message--error {
   color: #fca5a5;
+}
+.neighbor-viewer__source-path {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #7dd3fc;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
 }
