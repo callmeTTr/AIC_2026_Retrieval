@@ -25,6 +25,7 @@ interface ResultCardProps {
   onPlay: () => void;
   onSubmit: () => void;
   onRefine: () => void;
+  canRefineSearch: boolean;
   isCandidateSelected: boolean;
   onToggleCandidate: () => void;
 }
@@ -36,6 +37,7 @@ export function ResultCard({
   onPlay,
   onSubmit,
   onRefine,
+  canRefineSearch,
   isCandidateSelected,
   onToggleCandidate,
 }: ResultCardProps) {
@@ -50,6 +52,7 @@ export function ResultCard({
       : `Original video ${result.video_id} is unavailable`;
 
   const canRefine =
+    canRefineSearch &&
     Boolean(
       result.frame_ref?.trim(),
     );
@@ -208,9 +211,11 @@ export function ResultCard({
           className="result-card__refine-button"
           disabled={!canRefine}
           title={
-            canRefine
-              ? "Refine results from this frame"
-              : "Run a new feedback-ready search before refining"
+            !canRefineSearch
+              ? "OCR-only results cannot be used for refinement"
+              : canRefine
+                ? "Refine results from this frame"
+                : "Run a new feedback-ready search before refining"
           }
           onClick={onRefine}
         >

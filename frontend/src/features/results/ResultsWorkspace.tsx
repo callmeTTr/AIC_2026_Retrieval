@@ -82,6 +82,9 @@ export function ResultsWorkspace({
   const hasWarnings =
     warnings.length > 0;
 
+  const canRefineSearch =
+    response?.query_mode !== "ocr";
+
   const {
     candidates,
     isCandidateSelected,
@@ -270,8 +273,13 @@ export function ResultsWorkspace({
                       result,
                     })
                   }
-                  onRefine={() =>
-                    setRefinementResult(result)
+                  onRefine={() => {
+                    if (canRefineSearch) {
+                      setRefinementResult(result);
+                    }
+                  }}
+                  canRefineSearch={
+                    canRefineSearch
                   }
                   isCandidateSelected={isCandidateSelected(
                     result,
@@ -358,7 +366,8 @@ export function ResultsWorkspace({
         />
       )}
 
-      {refinementResult &&
+      {canRefineSearch &&
+        refinementResult &&
         response &&
         originalRequest && (
           <RefinementModal

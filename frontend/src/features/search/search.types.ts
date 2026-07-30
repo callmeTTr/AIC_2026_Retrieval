@@ -83,6 +83,7 @@ export interface SearchWarning {
 export interface SearchResponse {
   search_id: string;
   task: TaskId;
+  query_mode?: string;
 
   processing_time_ms: number;
   total_results: number;

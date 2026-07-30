@@ -54,6 +54,7 @@ interface LiveSearchResponse {
 
   search_id?: string;
   task?: SearchResponse["task"];
+  query_mode?: string;
 
   processing_time_ms?: number;
   total_results?: number;
@@ -446,6 +447,9 @@ export async function searchVideos(
     task:
       liveResponse.task ??
       request.task,
+
+    query_mode:
+      liveResponse.query_mode,
 
     processing_time_ms:
       liveResponse
