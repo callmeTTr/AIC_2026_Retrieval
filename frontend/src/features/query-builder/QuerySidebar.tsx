@@ -39,6 +39,9 @@ export function QuerySidebar({
   const [displayResultCount, setDisplayResultCount] =
     useState(100);
 
+  const [useQueryRewrite, setUseQueryRewrite] =
+    useState(true);
+
   const [scenes, setScenes] = useState<QueryScene[]>([
     createEmptyScene(),
   ]);
@@ -132,6 +135,7 @@ export function QuerySidebar({
       scenes,
       topKPerModality,
       displayResultCount,
+      useQueryRewrite,
     });
   }
 
@@ -182,6 +186,23 @@ export function QuerySidebar({
             onChange={(event) =>
               setDisplayResultCount(
                 Number(event.target.value),
+              )
+            }
+          />
+        </label>
+
+        <label className="query-sidebar__rewrite-toggle">
+          <span>Auto reconstruct</span>
+
+          <input
+            type="checkbox"
+            role="switch"
+            checked={useQueryRewrite}
+            aria-checked={useQueryRewrite}
+            aria-label="Toggle automatic visual query reconstruction"
+            onChange={(event) =>
+              setUseQueryRewrite(
+                event.target.checked,
               )
             }
           />

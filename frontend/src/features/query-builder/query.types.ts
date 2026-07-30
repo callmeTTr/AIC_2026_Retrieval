@@ -14,4 +14,5 @@ export interface QueryBuilderValue {
   scenes: QueryScene[];
   topKPerModality: number;
   displayResultCount: number;
+  useQueryRewrite: boolean;
 }

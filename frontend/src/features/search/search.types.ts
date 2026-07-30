@@ -125,7 +125,8 @@ export function createSearchRequest(
       display_result_count:
         queryBuilder.displayResultCount,
 
-      use_query_rewrite: true,
+      use_query_rewrite:
+        queryBuilder.useQueryRewrite,
     },
   };
 }
