@@ -415,13 +415,14 @@ export async function searchVideos(
       (scene) =>
         Boolean(
           scene.visual_query.trim() ||
-          scene.ocr_query.trim(),
+          scene.ocr_query.trim() ||
+          scene.asr_query.trim(),
         ),
     );
 
   if (activeSceneIndex < 0) {
     throw new Error(
-      "Enter at least one Visual or OCR query.",
+      "Enter at least one Visual, OCR, or ASR query.",
     );
   }
 
@@ -436,6 +437,9 @@ export async function searchVideos(
   const ocrQuery =
     activeScene.ocr_query.trim();
 
+  const asrQuery =
+    activeScene.asr_query.trim();
+
   const activeModalities:
     ActiveModalities = {
     visual:
@@ -444,11 +448,8 @@ export async function searchVideos(
     ocr:
       ocrQuery.length > 0,
 
-    /**
-     * ASR chưa được bật trên branch này.
-     */
     asr:
-      false,
+      asrQuery.length > 0,
   };
 
   const startedAt =
@@ -495,9 +496,11 @@ export async function searchVideos(
                 ocrQuery,
 
               /**
-               * ASR tạm thời chưa tích hợp.
+               * ASR giữ nguyên nội dung người dùng nhập
+               * và được backend xử lý ở ASR retrieval.
                */
-              asr_query: "",
+              asr_query:
+                asrQuery,
             },
           ],
 
