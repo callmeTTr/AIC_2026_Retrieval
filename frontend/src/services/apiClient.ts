@@ -44,13 +44,27 @@ export function resolveBackendUrl(
     ).toString();
   }
 }
+function resolveApiRequestUrl(
+  pathOrUrl: string,
+): string {
+  try {
+    return new URL(pathOrUrl).toString();
+  } catch {
+    const baseUrl =
+      env.apiBaseUrl.replace(/\/+$/, "");
 
+    const relativePath =
+      pathOrUrl.replace(/^\/+/, "");
+
+    return `${baseUrl}/${relativePath}`;
+  }
+}
 export async function apiRequest<T>(
-  path: string,
+  pathOrUrl: string,
   options: RequestInit = {},
 ): Promise<T> {
   const response = await fetch(
-    `${env.apiBaseUrl}${path}`,
+    resolveApiRequestUrl(pathOrUrl),
     {
       ...options,
 

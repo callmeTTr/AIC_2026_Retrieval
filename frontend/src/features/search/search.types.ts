@@ -29,7 +29,19 @@ export interface SearchRequest {
     top_k_per_modality: number;
     display_result_count: number;
     use_query_rewrite?: boolean;
+
+    /**
+     * Legacy eager-neighbor mode.
+     * Keep disabled for the normal search flow.
+     */
     include_neighbors?: boolean;
+
+    /**
+     * When enabled, neighbor frames are fetched only
+     * after the user opens the Neighbor viewer.
+     */
+    lazy_neighbors?: boolean;
+
     neighbor_radius?: number;
   };
 }
@@ -61,6 +73,16 @@ export interface SearchResult {
   kaggle_output_url?: string | null;
   kaggle_relative_path?: string | null;
 
+  /**
+   * Backend-provided endpoint used to fetch neighbor
+   * frames lazily for this result.
+   */
+  neighbors_url: string | null;
+
+  /**
+   * May contain preloaded neighbors from legacy responses.
+   * Normal lazy-search responses return an empty array.
+   */
   neighbors: NeighborFrame[];
   /**
    * URL stream video do backend trả về.
@@ -138,7 +160,8 @@ export function createSearchRequest(
       use_query_rewrite:
         queryBuilder.useQueryRewrite,
 
-      include_neighbors: true,
+      include_neighbors: false,
+      lazy_neighbors: true,
       neighbor_radius: 3,
     },
   };

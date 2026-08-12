@@ -61,6 +61,8 @@ interface LiveSearchResult {
 
   frame_ref?: string | null;
 
+  neighbors_url?: string | null;
+
   video_id: string;
 
   video_url?: string | null;
@@ -286,6 +288,11 @@ function normalizeResult(
       frameSource,
     );
 
+  const neighborsUrl =
+    resolveBackendUrl(
+      result.neighbors_url,
+    ) ?? null;
+
   if (
     !thumbnailUrl ||
     !frameUrl
@@ -354,6 +361,9 @@ function normalizeResult(
       result.kaggle_relative_path
         ?.trim() ||
       null,
+
+    neighbors_url:
+      neighborsUrl,
 
     neighbors,
 
@@ -521,6 +531,11 @@ export async function searchVideos(
             include_neighbors:
               request.options
                 .include_neighbors ??
+              false,
+
+            lazy_neighbors:
+              request.options
+                .lazy_neighbors ??
               true,
 
             neighbor_radius:

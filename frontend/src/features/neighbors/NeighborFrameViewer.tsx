@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
@@ -14,11 +13,12 @@ import type {
 } from "../search/search.types";
 
 import {
-  getEmbeddedNeighborFrames,
+  getNeighborFrames,
 } from "./neighbor.api";
 
 import type {
   NeighborFrame,
+  NeighborFramesResponse,
 } from "./neighbor.types";
 
 import "./NeighborFrameViewer.css";
@@ -32,45 +32,89 @@ export function NeighborFrameViewer({
   result,
   onClose,
 }: NeighborFrameViewerProps) {
-  const neighborData =
-    useMemo(
-      () =>
-        getEmbeddedNeighborFrames(
-          result,
-        ),
-      [result],
-    );
+  const [
+    neighborData,
+    setNeighborData,
+  ] = useState<
+    NeighborFramesResponse | null
+  >(null);
 
-  const initialFrame =
-    neighborData.frames.find(
-      (frame) => frame.is_center,
-    ) ??
-    neighborData.frames[0];
+  const [
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
+
+  const [
+    loadError,
+    setLoadError,
+  ] = useState<string | null>(
+    null,
+  );
 
   const [
     selectedFrameIndex,
     setSelectedFrameIndex,
   ] = useState(
-    initialFrame?.frame_index ??
-      result.frame_index,
+    result.frame_index,
   );
 
   useEffect(() => {
-    const centerFrame =
-      result.neighbors.find(
-        (frame) => frame.is_center,
-      ) ??
-      result.neighbors[0];
+    let isActive = true;
+
+    setNeighborData(null);
+    setIsLoading(true);
+    setLoadError(null);
 
     setSelectedFrameIndex(
-      centerFrame?.frame_index ??
-        result.frame_index,
+      result.frame_index,
     );
-  }, [
-    result.frame_index,
-    result.neighbors,
-    result.video_id,
-  ]);
+
+    getNeighborFrames(
+      result,
+      3,
+    )
+      .then((data) => {
+        if (!isActive) {
+          return;
+        }
+
+        setNeighborData(data);
+
+        const centerFrame =
+          data.frames.find(
+            (frame) =>
+              frame.is_center ||
+              frame.frame_index ===
+                result.frame_index,
+          ) ??
+          data.frames[0];
+
+        setSelectedFrameIndex(
+          centerFrame?.frame_index ??
+            result.frame_index,
+        );
+      })
+      .catch((error: unknown) => {
+        if (!isActive) {
+          return;
+        }
+
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load neighbor frames.",
+        );
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [result]);
 
   useEffect(() => {
     function handleKeyDown(
@@ -96,15 +140,15 @@ export function NeighborFrameViewer({
 
   const selectedFrame:
     NeighborFrame | undefined =
-    neighborData.frames.find(
+    neighborData?.frames.find(
       (frame) =>
         frame.frame_index ===
         selectedFrameIndex,
     ) ??
-    neighborData.frames.find(
+    neighborData?.frames.find(
       (frame) => frame.is_center,
     ) ??
-    neighborData.frames[0];
+    neighborData?.frames[0];
 
   function handleBackdropClick(
     event:
@@ -141,9 +185,9 @@ export function NeighborFrameViewer({
               Center frame{" "}
               {result.frame_index}
               {" · "}
-              {neighborData.before} before
+              {neighborData?.before ?? 0} before
               {" / "}
-              {neighborData.after} after
+              {neighborData?.after ?? 0} after
             </span>
           </div>
 
@@ -187,16 +231,30 @@ export function NeighborFrameViewer({
             </button>
           </nav>
         </header>
+        {isLoading && (
+          <section className="neighbor-viewer__message">
+            Loading neighbor frames...
+          </section>
+        )}
 
-        {neighborData.total_frames ===
-          0 && (
+        {!isLoading &&
+          loadError && (
+            <section className="neighbor-viewer__message">
+              {loadError}
+            </section>
+          )}
+        {!isLoading &&
+          !loadError &&
+          neighborData?.total_frames ===
+            0 && (
           <section className="neighbor-viewer__message">
             No neighbor frames were
             returned for this result.
           </section>
         )}
 
-        {selectedFrame && (
+        {neighborData &&
+          selectedFrame && (
           <>
             <section className="neighbor-viewer__preview">
               <img
