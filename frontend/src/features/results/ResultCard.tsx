@@ -41,12 +41,17 @@ export function ResultCard({
   isCandidateSelected,
   onToggleCandidate,
 }: ResultCardProps) {
-  const thumbnailUrl =
-    resolveBackendUrl(
-      result.thumbnail_url,
-    );
+const thumbnailUrl =
+  resolveBackendUrl(
+    result.thumbnail_url,
+  );
 
-  const videoTitle =
+const frameUrl =
+  resolveBackendUrl(
+    result.frame_url,
+  );
+
+const videoTitle =
     result.video_available
       ? `Open ${result.video_id} at ${result.timestamp_seconds.toFixed(3)} seconds`
       : `Original video ${result.video_id} is unavailable`;
@@ -68,10 +73,22 @@ export function ResultCard({
           onClick={onPlay}
         >
           <img
-            src={thumbnailUrl}
+            src={thumbnailUrl ?? frameUrl}
             alt={`Result ${result.rank} from ${result.video_id}`}
             loading="lazy"
             decoding="async"
+            onError={(event) => {
+              const image =
+                event.currentTarget;
+
+              if (
+                frameUrl &&
+                image.src !== frameUrl
+              ) {
+                image.src =
+                  frameUrl;
+              }
+            }}
           />
         </button>
 
