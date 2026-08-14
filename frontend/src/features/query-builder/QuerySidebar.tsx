@@ -5,6 +5,7 @@ import type {
   QueryBuilderValue,
   QueryField,
   QueryScene,
+  VisualSearchModel,
 } from "./query.types";
 
 import "./QuerySidebar.css";
@@ -12,6 +13,28 @@ import "./QuerySidebar.css";
 interface QuerySidebarProps {
   onSearch: (value: QueryBuilderValue) => void;
 }
+
+const VISUAL_MODEL_OPTIONS: Array<{
+  value: VisualSearchModel;
+  label: string;
+}> = [
+  {
+    value: "bge",
+    label: "BGE",
+  },
+  {
+    value: "metaclip",
+    label: "MetaCLIP",
+  },
+  {
+    value: "beit3",
+    label: "BEiT-3",
+  },
+  {
+    value: "perception",
+    label: "Perception",
+  },
+];
 
 function createEmptyScene(): QueryScene {
   return {
@@ -42,6 +65,16 @@ export function QuerySidebar({
   const [useQueryRewrite, setUseQueryRewrite] =
     useState(true);
 
+  const [
+    selectedVisualModels,
+    setSelectedVisualModels,
+  ] = useState<VisualSearchModel[]>([
+    "bge",
+    "metaclip",
+    "beit3",
+    "perception",
+  ]);
+
   const [scenes, setScenes] = useState<QueryScene[]>([
     createEmptyScene(),
   ]);
@@ -50,6 +83,24 @@ export function QuerySidebar({
     useState<string[]>([]);
 
   const [formError, setFormError] = useState("");
+
+  function handleVisualModelToggle(
+    model: VisualSearchModel,
+  ) {
+    setSelectedVisualModels((currentModels) =>
+      currentModels.includes(model)
+        ? currentModels.filter(
+            (currentModel) =>
+              currentModel !== model,
+          )
+        : [
+            ...currentModels,
+            model,
+          ],
+    );
+
+    setFormError("");
+  }
 
   function handleAddScene() {
     setScenes((currentScenes) => [
@@ -66,6 +117,27 @@ export function QuerySidebar({
     setInvalidSceneIds((currentIds) =>
       currentIds.filter((id) => id !== sceneId),
     );
+  }
+
+  function handleClearScene(sceneId: string) {
+    setScenes((currentScenes) =>
+      currentScenes.map((scene) =>
+        scene.id === sceneId
+          ? {
+              ...scene,
+              visualQuery: "",
+              ocrQuery: "",
+              asrQuery: "",
+            }
+          : scene,
+      ),
+    );
+
+    setInvalidSceneIds((currentIds) =>
+      currentIds.filter((id) => id !== sceneId),
+    );
+
+    setFormError("");
   }
 
   function handleSceneChange(
@@ -116,6 +188,21 @@ export function QuerySidebar({
       return;
     }
 
+    const hasVisualQuery =
+      scenes.some((scene) =>
+        Boolean(scene.visualQuery.trim()),
+      );
+
+    if (
+      hasVisualQuery &&
+      selectedVisualModels.length === 0
+    ) {
+      setFormError(
+        "Select at least one Visual model before searching.",
+      );
+      return;
+    }
+
     const emptySceneIds = scenes
       .filter(isSceneEmpty)
       .map((scene) => scene.id);
@@ -136,6 +223,7 @@ export function QuerySidebar({
       topKPerModality,
       displayResultCount,
       useQueryRewrite,
+      selectedVisualModels,
     });
   }
 
@@ -191,6 +279,37 @@ export function QuerySidebar({
           />
         </label>
 
+        <fieldset className="query-sidebar__model-selector">
+          <legend>Visual Models</legend>
+
+          <div className="query-sidebar__model-options">
+            {VISUAL_MODEL_OPTIONS.map(
+              ({ value, label }) => (
+                <label
+                  key={value}
+                  className="query-sidebar__model-option"
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedVisualModels.includes(
+                        value,
+                      )
+                    }
+                    onChange={() =>
+                      handleVisualModelToggle(
+                        value,
+                      )
+                    }
+                  />
+
+                  <span>{label}</span>
+                </label>
+              ),
+            )}
+          </div>
+        </fieldset>
+
         <label className="query-sidebar__rewrite-toggle">
           <span>Auto reconstruct</span>
 
@@ -218,6 +337,7 @@ export function QuerySidebar({
             canDelete={scenes.length > 1}
             isInvalid={invalidSceneIds.includes(scene.id)}
             onChange={handleSceneChange}
+            onClear={handleClearScene}
             onDelete={handleDeleteScene}
           />
         ))}

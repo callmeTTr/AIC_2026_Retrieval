@@ -17,6 +17,7 @@ interface SceneCardProps {
     field: QueryField,
     value: string,
   ) => void;
+  onClear: (sceneId: string) => void;
   onDelete: (sceneId: string) => void;
 }
 
@@ -26,6 +27,7 @@ export function SceneCard({
   canDelete,
   isInvalid,
   onChange,
+  onClear,
   onDelete,
 }: SceneCardProps) {
   const visualQueryId =
@@ -54,20 +56,32 @@ export function SceneCard({
           <span>At least one query is required</span>
         </div>
 
-        <button
-          type="button"
-          className="scene-card__delete"
-          disabled={!canDelete}
-          aria-label={`Delete Scene ${sceneNumber}`}
-          title={
-            canDelete
-              ? `Delete Scene ${sceneNumber}`
-              : "At least one scene is required"
-          }
-          onClick={() => onDelete(scene.id)}
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="scene-card__actions">
+          <button
+            type="button"
+            className="scene-card__clear"
+            aria-label={`Clear Scene ${sceneNumber}`}
+            title={`Clear all queries in Scene ${sceneNumber}`}
+            onClick={() => onClear(scene.id)}
+          >
+            Clear
+          </button>
+
+          <button
+            type="button"
+            className="scene-card__delete"
+            disabled={!canDelete}
+            aria-label={`Delete Scene ${sceneNumber}`}
+            title={
+              canDelete
+                ? `Delete Scene ${sceneNumber}`
+                : "At least one scene is required"
+            }
+            onClick={() => onDelete(scene.id)}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       {isInvalid && (
