@@ -69,6 +69,16 @@ export interface SearchResult {
   timestamp_seconds: number;
   timestamp_display: string;
 
+  /**
+   * Timestamp chính xác của retrieved frame.
+   */
+  frame_timestamp_seconds?: number;
+
+  /**
+   * FPS của source video.
+   */
+  fps?: number | null;
+
   thumbnail_url: string;
   frame_url: string;
 

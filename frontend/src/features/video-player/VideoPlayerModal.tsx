@@ -64,9 +64,9 @@ export function VideoPlayerModal({
   const posterUrl = useMemo(
     () =>
       resolveBackendUrl(
-        result.frame_url,
+        result.thumbnail_url,
       ),
-    [result.frame_url],
+    [result.thumbnail_url],
   );
 
   const missingVideo =
