@@ -156,7 +156,7 @@
 
 .result-card__metadata {
   display: grid;
-  grid-template-columns: 1fr 1.5fr 0.7fr;
+  grid-template-columns: 0.9fr 1.4fr 0.7fr 0.7fr;
   gap: 8px;
   margin: 12px 0 0;
 }

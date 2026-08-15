@@ -50,6 +50,10 @@ interface LiveSearchResult {
   frame_index?: number;
   timestamp_seconds?: number;
   timestamp_display?: string;
+
+  frame_timestamp_seconds?: number;
+  fps?: number | null;
+
   thumbnail_url?: string;
   frame_url?: string;
 
@@ -259,6 +263,22 @@ function normalizeResult(
           timestampText,
         );
 
+  const frameTimestampSeconds =
+    typeof result.frame_timestamp_seconds ===
+      "number" &&
+    Number.isFinite(
+      result.frame_timestamp_seconds,
+    )
+      ? result.frame_timestamp_seconds
+      : timestampSeconds;
+
+  const fps =
+    typeof result.fps === "number" &&
+    Number.isFinite(result.fps) &&
+    result.fps > 0
+      ? result.fps
+      : null;
+
   const thumbnailSource =
     result.thumbnail_url ??
     result.image_url;
@@ -345,6 +365,11 @@ function normalizeResult(
       formatTimestamp(
         timestampSeconds,
       ),
+
+    frame_timestamp_seconds:
+      frameTimestampSeconds,
+
+    fps,
 
     thumbnail_url:
       thumbnailUrl,

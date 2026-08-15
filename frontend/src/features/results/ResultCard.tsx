@@ -18,6 +18,64 @@ import type {
 
 import "./ResultCard.css";
 
+function formatVideoTime(
+  seconds: number,
+): string {
+  const totalSeconds =
+    Math.max(
+      0,
+      Math.floor(seconds),
+    );
+
+  const hours =
+    Math.floor(totalSeconds / 3600);
+
+  const minutes =
+    Math.floor(
+      (totalSeconds % 3600) / 60,
+    );
+
+  const secs =
+    totalSeconds % 60;
+
+  return [
+    hours,
+    minutes,
+    secs,
+  ]
+    .map((value) =>
+      value
+        .toString()
+        .padStart(2, "0"),
+    )
+    .join(":");
+}
+
+function formatFps(
+  fps: number | null | undefined,
+): string {
+  if (
+    fps === null ||
+    fps === undefined
+  ) {
+    return "—";
+  }
+
+  const rounded =
+    Math.round(fps);
+
+  if (
+    Math.abs(fps - rounded) <
+    0.005
+  ) {
+    return rounded.toString();
+  }
+
+  return fps
+    .toFixed(3)
+    .replace(/\.?0+$/, "");
+}
+
 interface ResultCardProps {
   result: SearchResult;
   onOpen: () => void;
@@ -41,6 +99,14 @@ export function ResultCard({
   isCandidateSelected,
   onToggleCandidate,
 }: ResultCardProps) {
+const frameTimeSeconds =
+  result.fps &&
+  result.fps > 0
+    ? result.frame_index /
+      result.fps
+    : result.frame_timestamp_seconds ??
+      result.timestamp_seconds;
+
 const thumbnailUrl =
   resolveBackendUrl(
     result.thumbnail_url,
@@ -213,8 +279,21 @@ const videoTitle =
           </div>
 
           <div>
-            <dt>Timestamp</dt>
-            <dd>{result.timestamp_display}</dd>
+            <dt>Video time</dt>
+            <dd>
+              {formatVideoTime(
+                frameTimeSeconds,
+              )}
+            </dd>
+          </div>
+
+          <div>
+            <dt>FPS</dt>
+            <dd>
+              {formatFps(
+                result.fps,
+              )}
+            </dd>
           </div>
 
           <div>
