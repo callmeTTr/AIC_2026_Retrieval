@@ -1,3 +1,9 @@
+export type VisualSearchModel =
+  | "bge"
+  | "metaclip"
+  | "beit3"
+  | "perception";
+
 export interface QueryScene {
   id: string;
   visualQuery: string;
@@ -15,4 +21,5 @@ export interface QueryBuilderValue {
   topKPerModality: number;
   displayResultCount: number;
   useQueryRewrite: boolean;
+  selectedVisualModels: VisualSearchModel[];
 }

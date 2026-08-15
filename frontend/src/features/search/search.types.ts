@@ -4,6 +4,7 @@ import type {
 
 import type {
   QueryBuilderValue,
+  VisualSearchModel,
 } from "../query-builder/query.types";
 
 import type {
@@ -29,6 +30,7 @@ export interface SearchRequest {
     top_k_per_modality: number;
     display_result_count: number;
     use_query_rewrite?: boolean;
+    visual_models: VisualSearchModel[];
 
     /**
      * Legacy eager-neighbor mode.
@@ -159,6 +161,9 @@ export function createSearchRequest(
 
       use_query_rewrite:
         queryBuilder.useQueryRewrite,
+
+      visual_models:
+        queryBuilder.selectedVisualModels,
 
       include_neighbors: false,
       lazy_neighbors: true,

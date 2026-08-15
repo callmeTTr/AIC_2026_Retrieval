@@ -528,6 +528,10 @@ export async function searchVideos(
                 .use_query_rewrite ??
               true,
 
+            visual_models:
+              request.options
+                .visual_models,
+
             include_neighbors:
               request.options
                 .include_neighbors ??

@@ -13,7 +13,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns:
-    minmax(330px, 390px)
+    minmax(420px, 400px)
     minmax(0, 1fr);
   overflow: hidden;
 }
