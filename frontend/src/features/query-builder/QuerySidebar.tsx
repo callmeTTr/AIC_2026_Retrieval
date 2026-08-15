@@ -57,7 +57,7 @@ export function QuerySidebar({
   onSearch,
 }: QuerySidebarProps) {
   const [topKPerModality, setTopKPerModality] =
-    useState(20);
+    useState(300);
 
   const [displayResultCount, setDisplayResultCount] =
     useState(20);
@@ -173,7 +173,7 @@ export function QuerySidebar({
       topKPerModality > 1000
     ) {
       setFormError(
-        "Top-K per Modality must be between 1 and 1000.",
+        "Visual Candidate K must be between 1 and 1000.",
       );
       return;
     }
@@ -244,7 +244,7 @@ export function QuerySidebar({
 
       <section className="query-sidebar__settings">
         <label>
-          <span>Top-K per Modality</span>
+          <span>Visual Candidate K</span>
 
           <input
             id="top-k-per-modality"
