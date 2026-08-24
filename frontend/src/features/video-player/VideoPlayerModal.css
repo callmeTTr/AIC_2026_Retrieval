@@ -149,8 +149,9 @@
 .video-player-modal__footer {
   display: grid;
   grid-template-columns:
-    minmax(120px, 1fr)
-    minmax(180px, 1fr)
+    minmax(150px, 1fr)
+    minmax(110px, 0.8fr)
+    minmax(80px, 0.5fr)
     minmax(180px, 1fr)
     auto;
   align-items: center;
@@ -159,7 +160,7 @@
   border-top: 1px solid rgb(255 255 255 / 10%);
 }
 
-.video-player-modal__footer div {
+.video-player-modal__footer > div {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -206,6 +207,46 @@
   outline-offset: 2px;
 }
 
+.video-player-modal__speed-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.video-player-modal__speed-buttons button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  color: #cbd5e1;
+  background: rgb(255 255 255 / 7%);
+  font-size: 12px;
+}
+
+.video-player-modal__speed-buttons button:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+.video-player-modal__speed-buttons
+  .video-player-modal__speed-button--active {
+  border-color: var(--color-primary);
+  color: #ffffff;
+  background: var(--color-primary);
+}
+
+.video-player-modal__footer >
+  .video-player-modal__footer-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.video-player-modal__footer-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* Responsive */
 
 @media (max-width: 750px) {
@@ -225,8 +266,14 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  .video-player-modal__footer button {
+  .video-player-modal__footer >
+    .video-player-modal__footer-actions {
     grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .video-player-modal__footer-actions button {
+    flex: 1;
   }
 }
 
@@ -239,7 +286,14 @@
     grid-template-columns: 1fr;
   }
 
-  .video-player-modal__footer button {
+  .video-player-modal__footer >
+    .video-player-modal__footer-actions {
     grid-column: auto;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .video-player-modal__footer-actions button {
+    width: 100%;
   }
 }

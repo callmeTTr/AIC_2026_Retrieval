@@ -7,6 +7,7 @@ import {
 
 import {
   AlertTriangle,
+  Copy,
   RotateCcw,
   X,
 } from "lucide-react";
@@ -32,6 +33,51 @@ type PlaybackState =
   | "ready"
   | "error";
 
+function formatPlaybackTime(
+  seconds: number | null,
+) {
+  if (
+    seconds === null ||
+    !Number.isFinite(seconds)
+  ) {
+    return "—";
+  }
+
+  const totalMilliseconds =
+    Math.max(
+      0,
+      Math.round(seconds * 1000),
+    );
+
+  const hours = Math.floor(
+    totalMilliseconds / 3_600_000,
+  );
+
+  const minutes = Math.floor(
+    (
+      totalMilliseconds %
+      3_600_000
+    ) / 60_000,
+  );
+
+  const wholeSeconds = Math.floor(
+    (
+      totalMilliseconds %
+      60_000
+    ) / 1000,
+  );
+
+  const milliseconds =
+    totalMilliseconds % 1000;
+
+  return (
+    `${String(hours).padStart(2, "0")}:` +
+    `${String(minutes).padStart(2, "0")}:` +
+    `${String(wholeSeconds).padStart(2, "0")}.` +
+    `${String(milliseconds).padStart(3, "0")}`
+  );
+}
+
 export function VideoPlayerModal({
   result,
   onClose,
@@ -47,6 +93,31 @@ export function VideoPlayerModal({
 
   const [actualSeekTime, setActualSeekTime] =
     useState<number | null>(null);
+
+  const [playbackRate, setPlaybackRate] =
+    useState(1);
+
+  const [frameCopied, setFrameCopied] =
+    useState(false);
+
+  const fps =
+    typeof result.fps === "number" &&
+    Number.isFinite(result.fps) &&
+    result.fps > 0
+      ? result.fps
+      : null;
+
+  const currentFrame =
+    fps !== null &&
+    actualSeekTime !== null
+      ? Math.max(
+          0,
+          Math.floor(
+            actualSeekTime * fps +
+              1e-6,
+          ),
+        )
+      : null;
 
   const targetTimestamp = Math.max(
     0,
@@ -108,6 +179,8 @@ export function VideoPlayerModal({
     setPlaybackState("loading");
     setErrorMessage(null);
     setActualSeekTime(null);
+    setPlaybackRate(1);
+    setFrameCopied(false);
   }, [
     result.video_id,
     result.timestamp_seconds,
@@ -173,7 +246,87 @@ export function VideoPlayerModal({
       return;
     }
 
+    video.playbackRate =
+      playbackRate;
+
     seekToResultTimestamp(video);
+  }
+
+  function updateCurrentPosition(
+    video: HTMLVideoElement,
+  ) {
+    setActualSeekTime(
+      video.currentTime,
+    );
+
+    setFrameCopied(false);
+  }
+
+  function handleTimeUpdate() {
+    const video =
+      videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    updateCurrentPosition(video);
+  }
+
+  function handlePause() {
+    const video =
+      videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    updateCurrentPosition(video);
+  }
+
+  function handleRateChange() {
+    const video =
+      videoRef.current;
+
+    if (!video) {
+      return;
+    }
+
+    setPlaybackRate(
+      video.playbackRate,
+    );
+  }
+
+  function handlePlaybackRateChange(
+    rate: number,
+  ) {
+    setPlaybackRate(rate);
+
+    const video =
+      videoRef.current;
+
+    if (video) {
+      video.playbackRate = rate;
+    }
+  }
+
+  async function copyCurrentFrame() {
+    if (currentFrame === null) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        String(currentFrame),
+      );
+
+      setFrameCopied(true);
+    } catch (error) {
+      console.error(
+        "Unable to copy current frame:",
+        error,
+      );
+    }
   }
 
   async function handleSeeked() {
@@ -184,9 +337,7 @@ export function VideoPlayerModal({
       return;
     }
 
-    setActualSeekTime(
-      video.currentTime,
-    );
+    updateCurrentPosition(video);
 
     setPlaybackState("ready");
 
@@ -351,6 +502,15 @@ export function VideoPlayerModal({
                 onSeeked={
                   handleSeeked
                 }
+                onTimeUpdate={
+                  handleTimeUpdate
+                }
+                onPause={
+                  handlePause
+                }
+                onRateChange={
+                  handleRateChange
+                }
                 onError={
                   handleVideoError
                 }
@@ -393,52 +553,107 @@ export function VideoPlayerModal({
 
             <footer className="video-player-modal__footer">
               <div>
-                <span>Video</span>
-
-                <strong>
-                  {result.video_id}
-                </strong>
-              </div>
-
-              <div>
                 <span>
-                  Target timestamp
+                  Current time
                 </span>
 
                 <strong>
-                  {targetTimestamp.toFixed(
-                    3,
+                  {formatPlaybackTime(
+                    actualSeekTime,
                   )}
-                  s
                 </strong>
               </div>
 
               <div>
                 <span>
-                  Browser position
+                  Current frame
                 </span>
 
                 <strong>
-                  {actualSeekTime ===
-                  null
-                    ? "—"
-                    : `${actualSeekTime.toFixed(
-                        3,
-                      )}s`}
+                  {currentFrame ??
+                    "—"}
                 </strong>
               </div>
 
-              <button
-                type="button"
-                onClick={
-                  replayFromFrame
-                }
-              >
-                <RotateCcw
-                  size={16}
-                />
-                Replay from frame
-              </button>
+              <div>
+                <span>FPS</span>
+
+                <strong>
+                  {fps === null
+                    ? "—"
+                    : fps
+                        .toFixed(3)
+                        .replace(
+                          /\.?0+$/,
+                          "",
+                        )}
+                </strong>
+              </div>
+
+              <div className="video-player-modal__speed">
+                <span>Speed</span>
+
+                <div className="video-player-modal__speed-buttons">
+                  {[
+                    1,
+                    1.5,
+                    2,
+                  ].map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      className={
+                        playbackRate ===
+                        rate
+                          ? "video-player-modal__speed-button video-player-modal__speed-button--active"
+                          : "video-player-modal__speed-button"
+                      }
+                      aria-pressed={
+                        playbackRate ===
+                        rate
+                      }
+                      onClick={() =>
+                        handlePlaybackRateChange(
+                          rate,
+                        )
+                      }
+                    >
+                      {rate}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="video-player-modal__footer-actions">
+                <button
+                  type="button"
+                  disabled={
+                    currentFrame ===
+                    null
+                  }
+                  onClick={
+                    copyCurrentFrame
+                  }
+                >
+                  <Copy size={16} />
+
+                  {frameCopied
+                    ? "Copied"
+                    : "Copy Frame"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={
+                    replayFromFrame
+                  }
+                >
+                  <RotateCcw
+                    size={16}
+                  />
+                  Replay
+                </button>
+              </div>
             </footer>
           </>
         )}
