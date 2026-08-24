@@ -42,7 +42,9 @@
 
 .neighbor-viewer__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -77,6 +79,72 @@
   color: #ffffff;
   background: rgb(255 255 255 / 8%);
   cursor: pointer;
+}
+
+.neighbor-viewer__radius-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.neighbor-viewer__radius-form label {
+  color: #9eabbe;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.neighbor-viewer__radius-form input {
+  width: 64px;
+  height: 38px;
+  padding: 0 8px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 9px;
+  outline: none;
+  color: #ffffff;
+  background: rgb(255 255 255 / 8%);
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
+}
+
+.neighbor-viewer__radius-form input:focus {
+  border-color: var(--color-primary);
+  box-shadow:
+    0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--color-primary) 30%,
+      transparent
+    );
+}
+
+.neighbor-viewer__header
+  .neighbor-viewer__load-button {
+  width: auto;
+  min-width: 58px;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.neighbor-viewer__header
+  .neighbor-viewer__load-button:hover:not(
+    :disabled
+  ) {
+  background: var(--color-primary-hover);
+}
+
+.neighbor-viewer__header
+  .neighbor-viewer__load-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .neighbor-viewer__preview {

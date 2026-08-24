@@ -58,6 +58,21 @@ export function NeighborFrameViewer({
     result.frame_index,
   );
 
+  const [
+    radiusInput,
+    setRadiusInput,
+  ] = useState("3");
+
+  const [
+    neighborRadius,
+    setNeighborRadius,
+  ] = useState(3);
+
+  const [
+    reloadKey,
+    setReloadKey,
+  ] = useState(0);
+
   useEffect(() => {
     let isActive = true;
 
@@ -71,7 +86,7 @@ export function NeighborFrameViewer({
 
     getNeighborFrames(
       result,
-      3,
+      neighborRadius,
     )
       .then((data) => {
         if (!isActive) {
@@ -114,7 +129,11 @@ export function NeighborFrameViewer({
     return () => {
       isActive = false;
     };
-  }, [result]);
+  }, [
+    result,
+    neighborRadius,
+    reloadKey,
+  ]);
 
   useEffect(() => {
     function handleKeyDown(
@@ -162,6 +181,43 @@ export function NeighborFrameViewer({
     }
   }
 
+  function handleRadiusSubmit(
+    event:
+      React.FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    const parsedRadius =
+      Number.parseInt(
+        radiusInput,
+        10,
+      );
+
+    const normalizedRadius =
+      Number.isFinite(parsedRadius)
+        ? Math.max(
+            1,
+            Math.min(
+              parsedRadius,
+              50,
+            ),
+          )
+        : 3;
+
+    setRadiusInput(
+      String(normalizedRadius),
+    );
+
+    setNeighborRadius(
+      normalizedRadius,
+    );
+
+    setReloadKey(
+      (currentKey) =>
+        currentKey + 1,
+    );
+  }
+
   return (
     <div
       className="neighbor-viewer"
@@ -195,6 +251,45 @@ export function NeighborFrameViewer({
             className="neighbor-viewer__actions"
             aria-label="Neighbor frame actions"
           >
+            <form
+              className="neighbor-viewer__radius-form"
+              onSubmit={
+                handleRadiusSubmit
+              }
+            >
+              <label
+                htmlFor="neighbor-radius"
+              >
+                Radius
+              </label>
+
+              <input
+                id="neighbor-radius"
+                type="number"
+                min={1}
+                max={50}
+                step={1}
+                inputMode="numeric"
+                value={radiusInput}
+                aria-label="Neighbor frame radius"
+                onChange={(event) =>
+                  setRadiusInput(
+                    event.target.value,
+                  )
+                }
+              />
+
+              <button
+                type="submit"
+                className="neighbor-viewer__load-button"
+                disabled={isLoading}
+              >
+                {isLoading
+                  ? "Loading"
+                  : "Load"}
+              </button>
+            </form>
+
             {selectedFrame
               ?.kaggle_output_url && (
               <a
