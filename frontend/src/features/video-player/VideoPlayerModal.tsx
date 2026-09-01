@@ -85,6 +85,9 @@ export function VideoPlayerModal({
   const videoRef =
     useRef<HTMLVideoElement | null>(null);
 
+  const suppressAutoplayOnNextSeekRef =
+    useRef(false);
+
   const [playbackState, setPlaybackState] =
     useState<PlaybackState>("loading");
 
@@ -96,6 +99,9 @@ export function VideoPlayerModal({
 
   const [playbackRate, setPlaybackRate] =
     useState(1);
+
+  const [frameStep, setFrameStep] =
+    useState<1 | 2>(1);
 
   const [frameCopied, setFrameCopied] =
     useState(false);
@@ -180,7 +186,11 @@ export function VideoPlayerModal({
     setErrorMessage(null);
     setActualSeekTime(null);
     setPlaybackRate(1);
+    setFrameStep(1);
     setFrameCopied(false);
+
+    suppressAutoplayOnNextSeekRef.current =
+      false;
   }, [
     result.video_id,
     result.timestamp_seconds,
@@ -310,6 +320,66 @@ export function VideoPlayerModal({
     }
   }
 
+  function stepVideoFrame(
+    direction: -1 | 1,
+  ) {
+    const video =
+      videoRef.current;
+
+    if (
+      !video ||
+      fps === null ||
+      !Number.isFinite(video.duration)
+    ) {
+      return;
+    }
+
+    video.pause();
+
+    const displayedFrame =
+      Math.max(
+        0,
+        Math.floor(
+          video.currentTime * fps +
+            1e-6,
+        ),
+      );
+
+    const maxFrame =
+      Math.max(
+        0,
+        Math.floor(
+          video.duration * fps -
+            1e-6,
+        ),
+      );
+
+    const targetFrame =
+      Math.max(
+        0,
+        Math.min(
+          displayedFrame +
+            direction * frameStep,
+          maxFrame,
+        ),
+      );
+
+    if (
+      targetFrame ===
+      displayedFrame
+    ) {
+      return;
+    }
+
+    suppressAutoplayOnNextSeekRef.current =
+      true;
+
+    setPlaybackState("seeking");
+
+    video.currentTime =
+      targetFrame / fps;
+  }
+
   async function copyCurrentFrame() {
     if (currentFrame === null) {
       return;
@@ -340,6 +410,16 @@ export function VideoPlayerModal({
     updateCurrentPosition(video);
 
     setPlaybackState("ready");
+
+    if (
+      suppressAutoplayOnNextSeekRef.current
+    ) {
+      suppressAutoplayOnNextSeekRef.current =
+        false;
+
+      video.pause();
+      return;
+    }
 
     try {
       await video.play();
@@ -595,6 +675,8 @@ export function VideoPlayerModal({
 
                 <div className="video-player-modal__speed-buttons">
                   {[
+                    0.25,
+                    0.5,
                     1,
                     1.5,
                     2,
@@ -621,6 +703,69 @@ export function VideoPlayerModal({
                       {rate}x
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="video-player-modal__speed">
+                <span>Frame step</span>
+
+                <div className="video-player-modal__speed-buttons">
+                  {([
+                    1,
+                    2,
+                  ] as const).map(
+                    (step) => (
+                      <button
+                        key={step}
+                        type="button"
+                        className={
+                          frameStep ===
+                          step
+                            ? "video-player-modal__speed-button video-player-modal__speed-button--active"
+                            : "video-player-modal__speed-button"
+                        }
+                        aria-pressed={
+                          frameStep ===
+                          step
+                        }
+                        onClick={() =>
+                          setFrameStep(
+                            step,
+                          )
+                        }
+                      >
+                        {step}f
+                      </button>
+                    ),
+                  )}
+
+                  <button
+                    type="button"
+                    className="video-player-modal__speed-button"
+                    disabled={
+                      fps === null
+                    }
+                    title={`Previous ${frameStep} frame(s)`}
+                    onClick={() =>
+                      stepVideoFrame(-1)
+                    }
+                  >
+                    ←
+                  </button>
+
+                  <button
+                    type="button"
+                    className="video-player-modal__speed-button"
+                    disabled={
+                      fps === null
+                    }
+                    title={`Next ${frameStep} frame(s)`}
+                    onClick={() =>
+                      stepVideoFrame(1)
+                    }
+                  >
+                    →
+                  </button>
                 </div>
               </div>
 
