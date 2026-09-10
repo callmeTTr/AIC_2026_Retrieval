@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import {
+  getCurrentDresTask,
   loginToDres,
 } from "./dres.api";
 
@@ -35,13 +36,43 @@ export function DresConnectionPanel({
   const [bridgeToken, setBridgeToken] =
     useState(getDresBridgeToken());
 
+  const [currentTaskName, setCurrentTaskName] =
+    useState("");
+
   const [isConnecting, setIsConnecting] =
+    useState(false);
+
+  const [isSavingRun, setIsSavingRun] =
     useState(false);
 
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
   const isConnected = Boolean(bridgeToken);
+
+  async function validateRun(
+    evaluationId: string,
+    token: string,
+  ): Promise<string> {
+    try {
+      const task = await getCurrentDresTask(
+        evaluationId,
+        token,
+      );
+
+      if (!task.name) {
+        throw new Error(
+          "DRES returned no current task.",
+        );
+      }
+
+      return task.name;
+    } catch {
+      throw new Error(
+        "Run ID is unavailable or the evaluation has ended.",
+      );
+    }
+  }
 
   async function handleConnect() {
     const normalizedRunId = runId.trim();
@@ -68,6 +99,11 @@ export function DresConnectionPanel({
         password,
       );
 
+      const taskName = await validateRun(
+        normalizedRunId,
+        response.access_token,
+      );
+
       setDresRunId(normalizedRunId);
       setDresBridgeToken(response.access_token);
       setDresUsername(
@@ -79,6 +115,7 @@ export function DresConnectionPanel({
         response.username ?? normalizedUsername,
       );
       setBridgeToken(response.access_token);
+      setCurrentTaskName(taskName);
 
       // Password is intentionally never stored.
       setPassword("");
@@ -96,11 +133,12 @@ export function DresConnectionPanel({
   function handleDisconnect() {
     clearDresSession();
     setBridgeToken("");
+    setCurrentTaskName("");
     setPassword("");
     setErrorMessage(null);
   }
 
-  function handleSaveRunId() {
+  async function handleSaveRunId() {
     const normalizedRunId = runId.trim();
 
     if (!normalizedRunId) {
@@ -108,9 +146,34 @@ export function DresConnectionPanel({
       return;
     }
 
-    setDresRunId(normalizedRunId);
-    setRunId(normalizedRunId);
+    if (!bridgeToken) {
+      setErrorMessage(
+        "DRES is not connected.",
+      );
+      return;
+    }
+
+    setIsSavingRun(true);
     setErrorMessage(null);
+
+    try {
+      const taskName = await validateRun(
+        normalizedRunId,
+        bridgeToken,
+      );
+
+      setDresRunId(normalizedRunId);
+      setRunId(normalizedRunId);
+      setCurrentTaskName(taskName);
+    } catch {
+      setRunId(getDresRunId());
+
+      setErrorMessage(
+        "Run ID is unavailable or the evaluation has ended. Last saved run restored.",
+      );
+    } finally {
+      setIsSavingRun(false);
+    }
   }
 
   return (
@@ -145,6 +208,12 @@ export function DresConnectionPanel({
             {username}
           </div>
 
+          {currentTaskName && (
+            <div className="dres-panel__account">
+              Current task: {currentTaskName}
+            </div>
+          )}
+
           <label className="dres-panel__field">
             <span>Run ID</span>
 
@@ -160,13 +229,17 @@ export function DresConnectionPanel({
           <div className="dres-panel__actions">
             <button
               type="button"
+              disabled={isSavingRun}
               onClick={handleSaveRunId}
             >
-              Save run
+              {isSavingRun
+                ? "Checking..."
+                : "Save run"}
             </button>
 
             <button
               type="button"
+              disabled={isSavingRun}
               onClick={handleDisconnect}
             >
               Disconnect
