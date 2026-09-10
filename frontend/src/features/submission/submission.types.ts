@@ -13,13 +13,12 @@ export interface SubmissionRequest {
 }
 
 export interface SubmissionResponse {
-  submission_id: string;
   status: SubmissionStatus;
   task: TaskId;
   search_id: string;
   video_id: string;
   frame_index: number;
   timestamp_seconds: number;
-  submitted_at: string;
+  dres_result: string;
   message: string;
 }

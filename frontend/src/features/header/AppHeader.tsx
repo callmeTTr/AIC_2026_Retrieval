@@ -1,3 +1,9 @@
+import { useState } from "react";
+
+import {
+  DresConnectionPanel,
+} from "../dres/DresConnectionPanel";
+
 import "./AppHeader.css";
 
 export type TaskId =
@@ -25,6 +31,9 @@ export function AppHeader({
   selectedTask,
   onTaskChange,
 }: AppHeaderProps) {
+  const [isDresOpen, setIsDresOpen] =
+    useState(false);
+
   return (
     <header className="app-header">
       <div className="app-header__brand">
@@ -61,6 +70,26 @@ export function AppHeader({
           </button>
         ))}
       </nav>
+
+      <div className="app-header__dres">
+        <button
+          type="button"
+          className="app-header__dres-button"
+          onClick={() =>
+            setIsDresOpen((current) => !current)
+          }
+        >
+          DRES
+        </button>
+
+        {isDresOpen && (
+          <DresConnectionPanel
+            onClose={() =>
+              setIsDresOpen(false)
+            }
+          />
+        )}
+      </div>
     </header>
   );
 }

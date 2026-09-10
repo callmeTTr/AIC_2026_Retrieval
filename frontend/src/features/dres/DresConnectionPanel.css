@@ -1,0 +1,136 @@
+.dres-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 20px;
+  z-index: 100;
+  width: min(360px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: 0 18px 45px rgb(15 23 42 / 14%);
+}
+
+.dres-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.dres-panel__eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dres-panel__header h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.dres-panel__close {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.dres-panel__form,
+.dres-panel__connected {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dres-panel__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dres-panel__field span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dres-panel__field input {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  outline: none;
+}
+
+.dres-panel__field input:focus {
+  border-color: var(--color-primary);
+}
+
+.dres-panel__connect,
+.dres-panel__actions button {
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.dres-panel__connect {
+  border-color: var(--color-primary);
+  color: #ffffff;
+  background: var(--color-primary);
+  font-weight: 700;
+}
+
+.dres-panel__connect:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.dres-panel__status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dres-panel__status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.dres-panel__account {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.dres-panel__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.dres-panel__actions button {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+}
+
+.dres-panel__error {
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 8px;
+  color: #b91c1c;
+  background: #fef2f2;
+  font-size: 12px;
+}

@@ -132,7 +132,7 @@ export function SubmissionModal({
                 size={44}
               />
 
-              <h3>Submission accepted</h3>
+              <h3>Submission sent</h3>
 
               <p>
                 {
@@ -143,11 +143,11 @@ export function SubmissionModal({
 
               <dl className="submission-modal__details">
                 <div>
-                  <dt>Submission ID</dt>
+                  <dt>DRES result</dt>
                   <dd>
                     {
                       submissionMutation.data
-                        .submission_id
+                        .dres_result
                     }
                   </dd>
                 </div>

@@ -1,8 +1,11 @@
 .app-header {
+  position: relative;
   min-height: 72px;
   display: grid;
   grid-template-columns:
-    minmax(170px, auto) minmax(0, 1fr);
+    minmax(170px, auto)
+    minmax(0, 1fr)
+    minmax(100px, auto);
   align-items: center;
   gap: 24px;
   padding: 12px 20px;
@@ -59,7 +62,24 @@
   color: #ffffff;
   background: var(--color-primary);
 }
+.app-header__dres {
+  display: flex;
+  justify-content: flex-end;
+}
 
+.app-header__dres-button {
+  padding: 9px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.app-header__dres-button:hover {
+  border-color: var(--color-primary);
+}
 @media (max-width: 950px) {
   .app-header {
     grid-template-columns: 1fr;
