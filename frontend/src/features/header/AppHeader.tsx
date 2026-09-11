@@ -4,6 +4,10 @@ import {
   DresConnectionPanel,
 } from "../dres/DresConnectionPanel";
 
+import {
+  ManualKisSubmissionModal,
+} from "../submission/ManualKisSubmissionModal";
+
 import "./AppHeader.css";
 
 export type TaskId =
@@ -33,6 +37,10 @@ export function AppHeader({
 }: AppHeaderProps) {
   const [isDresOpen, setIsDresOpen] =
     useState(false);
+  const [
+    isManualSubmitOpen,
+    setIsManualSubmitOpen,
+  ] = useState(false);
 
   return (
     <header className="app-header">
@@ -71,21 +79,45 @@ export function AppHeader({
         ))}
       </nav>
 
-      <div className="app-header__dres">
+      <div className="app-header__actions">
         <button
           type="button"
-          className="app-header__dres-button"
-          onClick={() =>
-            setIsDresOpen((current) => !current)
-          }
+          className="app-header__manual-button"
+          onClick={() => {
+            setIsManualSubmitOpen(true);
+            setIsDresOpen(false);
+          }}
         >
-          DRES
+          Manual Submit
         </button>
 
-        {isDresOpen && (
-          <DresConnectionPanel
+        <div className="app-header__dres">
+          <button
+            type="button"
+            className="app-header__dres-button"
+            onClick={() => {
+              setIsDresOpen(
+                (current) => !current,
+              );
+              setIsManualSubmitOpen(false);
+            }}
+          >
+            DRES
+          </button>
+
+          {isDresOpen && (
+            <DresConnectionPanel
+              onClose={() =>
+                setIsDresOpen(false)
+              }
+            />
+          )}
+        </div>
+
+        {isManualSubmitOpen && (
+          <ManualKisSubmissionModal
             onClose={() =>
-              setIsDresOpen(false)
+              setIsManualSubmitOpen(false)
             }
           />
         )}

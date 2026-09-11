@@ -62,19 +62,39 @@
   color: #ffffff;
   background: var(--color-primary);
 }
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .app-header__dres {
   display: flex;
   justify-content: flex-end;
 }
 
+.app-header__manual-button,
 .app-header__dres-button {
   padding: 9px 14px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  color: var(--color-text);
-  background: var(--color-surface-raised);
   cursor: pointer;
   font-weight: 700;
+}
+
+.app-header__manual-button {
+  border-color: var(--color-primary);
+  color: #ffffff;
+  background: var(--color-primary);
+}
+
+.app-header__dres-button {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+}
+
+.app-header__manual-button:hover {
+  filter: brightness(0.96);
 }
 
 .app-header__dres-button:hover {
