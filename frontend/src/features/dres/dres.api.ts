@@ -11,7 +11,34 @@ export interface DresCurrentTask {
   name?: string;
   [key: string]: unknown;
 }
+export interface DresStartTaskResponse {
+  status: string;
+  dres_http_status: number;
+  dres_response: {
+    status?: boolean;
+    description?: string;
+    [key: string]: unknown;
+  };
+}
 
+export interface DresQaSubmitRequest {
+  answer: string;
+}
+
+export interface DresQaSubmitResponse {
+  status: string;
+  dres_http_status: number;
+  task: string;
+  submitted: {
+    answer: string;
+  };
+  dres_response: {
+    status?: boolean;
+    submission?: string;
+    description?: string;
+    [key: string]: unknown;
+  };
+}
 export interface DresSubmitRequest {
   media_item_name: string;
   timestamp_seconds: number;
@@ -118,7 +145,22 @@ export function getCurrentDresTask(
     },
   );
 }
-
+export function startDresTask(
+  evaluationId: string,
+  bridgeToken: string,
+): Promise<DresStartTaskResponse> {
+  return dresRequest<DresStartTaskResponse>(
+    `/start-task/${encodeURIComponent(
+      evaluationId,
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "X-Bridge-Token": bridgeToken,
+      },
+    },
+  );
+}
 export function submitToDres(
   evaluationId: string,
   bridgeToken: string,
@@ -126,6 +168,24 @@ export function submitToDres(
 ): Promise<DresSubmitResponse> {
   return dresRequest<DresSubmitResponse>(
     `/submit/${encodeURIComponent(
+      evaluationId,
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "X-Bridge-Token": bridgeToken,
+      },
+      body: JSON.stringify(request),
+    },
+  );
+}
+export function submitQaToDres(
+  evaluationId: string,
+  bridgeToken: string,
+  request: DresQaSubmitRequest,
+): Promise<DresQaSubmitResponse> {
+  return dresRequest<DresQaSubmitResponse>(
+    `/submit-qa/${encodeURIComponent(
       evaluationId,
     )}`,
     {
