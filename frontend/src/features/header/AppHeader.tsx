@@ -8,6 +8,10 @@ import {
   ManualKisSubmissionModal,
 } from "../submission/ManualKisSubmissionModal";
 
+import {
+  QaSubmissionModal,
+} from "../submission/QaSubmissionModal";
+
 import "./AppHeader.css";
 
 export type TaskId =
@@ -37,9 +41,15 @@ export function AppHeader({
 }: AppHeaderProps) {
   const [isDresOpen, setIsDresOpen] =
     useState(false);
+
   const [
     isManualSubmitOpen,
     setIsManualSubmitOpen,
+  ] = useState(false);
+
+  const [
+    isQaSubmitOpen,
+    setIsQaSubmitOpen,
   ] = useState(false);
 
   return (
@@ -85,10 +95,23 @@ export function AppHeader({
           className="app-header__manual-button"
           onClick={() => {
             setIsManualSubmitOpen(true);
+            setIsQaSubmitOpen(false);
             setIsDresOpen(false);
           }}
         >
           Manual Submit
+        </button>
+
+        <button
+          type="button"
+          className="app-header__manual-button"
+          onClick={() => {
+            setIsQaSubmitOpen(true);
+            setIsManualSubmitOpen(false);
+            setIsDresOpen(false);
+          }}
+        >
+          QA Submit
         </button>
 
         <div className="app-header__dres">
@@ -99,7 +122,9 @@ export function AppHeader({
               setIsDresOpen(
                 (current) => !current,
               );
+
               setIsManualSubmitOpen(false);
+              setIsQaSubmitOpen(false);
             }}
           >
             DRES
@@ -118,6 +143,14 @@ export function AppHeader({
           <ManualKisSubmissionModal
             onClose={() =>
               setIsManualSubmitOpen(false)
+            }
+          />
+        )}
+
+        {isQaSubmitOpen && (
+          <QaSubmissionModal
+            onClose={() =>
+              setIsQaSubmitOpen(false)
             }
           />
         )}
