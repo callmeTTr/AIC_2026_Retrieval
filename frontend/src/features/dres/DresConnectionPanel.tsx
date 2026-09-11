@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   getCurrentDresTask,
@@ -48,12 +48,17 @@ export function DresConnectionPanel({
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
+  const [
+    hasValidatedRun,
+    setHasValidatedRun,
+  ] = useState(false);
+
   const isConnected = Boolean(bridgeToken);
 
   async function validateRun(
     evaluationId: string,
     token: string,
-  ): Promise<string> {
+  ): Promise<string | null> {
     try {
       const task = await getCurrentDresTask(
         evaluationId,
@@ -67,12 +72,97 @@ export function DresConnectionPanel({
       }
 
       return task.name;
-    } catch {
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "";
+
+      const normalizedMessage =
+        message.toLowerCase();
+
+      if (
+        normalizedMessage.includes(
+          "invalid bridge token",
+        )
+      ) {
+        throw new Error(
+          "DRES session expired. Please reconnect.",
+        );
+      }
+
+      if (
+        normalizedMessage.includes(
+          "no active task",
+        ) ||
+        normalizedMessage.includes(
+          "no current task",
+        )
+      ) {
+        return null;
+      }
+
       throw new Error(
         "Run ID is unavailable or the evaluation has ended.",
       );
     }
   }
+
+  useEffect(() => {
+    const savedRunId =
+      getDresRunId().trim();
+
+    const savedToken =
+      getDresBridgeToken().trim();
+
+    if (!savedRunId || !savedToken) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void validateRun(
+      savedRunId,
+      savedToken,
+    )
+      .then((taskName) => {
+        if (cancelled) {
+          return;
+        }
+
+        setCurrentTaskName(
+          taskName ?? "",
+        );
+
+        setHasValidatedRun(true);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to validate DRES session.";
+
+        if (
+          message ===
+          "DRES session expired. Please reconnect."
+        ) {
+          clearDresSession();
+          setBridgeToken("");
+          setCurrentTaskName("");
+          setHasValidatedRun(false);
+        }
+
+        setErrorMessage(message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleConnect() {
     const normalizedRunId = runId.trim();
@@ -115,7 +205,10 @@ export function DresConnectionPanel({
         response.username ?? normalizedUsername,
       );
       setBridgeToken(response.access_token);
-      setCurrentTaskName(taskName);
+      setCurrentTaskName(
+        taskName ?? "",
+      );
+      setHasValidatedRun(true);
 
       // Password is intentionally never stored.
       setPassword("");
@@ -134,6 +227,7 @@ export function DresConnectionPanel({
     clearDresSession();
     setBridgeToken("");
     setCurrentTaskName("");
+    setHasValidatedRun(false);
     setPassword("");
     setErrorMessage(null);
   }
@@ -164,7 +258,10 @@ export function DresConnectionPanel({
 
       setDresRunId(normalizedRunId);
       setRunId(normalizedRunId);
-      setCurrentTaskName(taskName);
+      setCurrentTaskName(
+        taskName ?? "",
+      );
+      setHasValidatedRun(true);
     } catch {
       setRunId(getDresRunId());
 
@@ -208,10 +305,16 @@ export function DresConnectionPanel({
             {username}
           </div>
 
-          {currentTaskName && (
+          {currentTaskName ? (
             <div className="dres-panel__account">
               Current task: {currentTaskName}
             </div>
+          ) : (
+            hasValidatedRun && (
+              <div className="dres-panel__account">
+                No active task is currently available.
+              </div>
+            )
           )}
 
           <label className="dres-panel__field">
