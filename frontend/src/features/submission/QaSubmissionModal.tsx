@@ -115,11 +115,33 @@ export function QaSubmissionModal({
           submission === "INDETERMINATE",
       });
     } catch (error) {
-      setErrorMessage(
+      const message =
         error instanceof Error
           ? error.message
-          : "Unable to submit QA answer to DRES.",
-      );
+          : "Unable to submit QA answer to DRES.";
+
+      const normalizedMessage =
+        message.toLowerCase();
+
+      if (
+        normalizedMessage.includes(
+          "no running task for team",
+        )
+      ) {
+        setErrorMessage(
+          "QA task is not currently running. Start or switch to an active DRES task before submitting.",
+        );
+      } else if (
+        normalizedMessage.includes(
+          "invalid bridge token",
+        )
+      ) {
+        setErrorMessage(
+          "DRES session expired. Please reconnect before submitting.",
+        );
+      } else {
+        setErrorMessage(message);
+      }
     } finally {
       setIsSubmitting(false);
     }
