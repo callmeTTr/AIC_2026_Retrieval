@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   getCurrentDresTask,
   loginToDres,
+  startDresTask,
 } from "./dres.api";
 
 import {
@@ -44,7 +45,8 @@ export function DresConnectionPanel({
 
   const [isSavingRun, setIsSavingRun] =
     useState(false);
-
+  const [isStartingTask, setIsStartingTask] =
+    useState(false);
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
@@ -272,7 +274,76 @@ export function DresConnectionPanel({
       setIsSavingRun(false);
     }
   }
+  async function handleStartTask() {
+    const normalizedRunId =
+      runId.trim();
 
+    if (!normalizedRunId) {
+      setErrorMessage(
+        "Run ID is required.",
+      );
+      return;
+    }
+
+    if (!bridgeToken) {
+      setErrorMessage(
+        "DRES is not connected.",
+      );
+      return;
+    }
+
+    setIsStartingTask(true);
+    setErrorMessage(null);
+
+    try {
+      await startDresTask(
+        normalizedRunId,
+        bridgeToken,
+      );
+
+      const taskName =
+        await validateRun(
+          normalizedRunId,
+          bridgeToken,
+        );
+
+      setDresRunId(normalizedRunId);
+      setCurrentTaskName(
+        taskName ?? "",
+      );
+      setHasValidatedRun(true);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to start DRES task.";
+
+      const normalizedMessage =
+        message.toLowerCase();
+
+      if (
+        normalizedMessage.includes(
+          "invalid bridge token",
+        ) ||
+        normalizedMessage.includes(
+          "session expired",
+        )
+      ) {
+        clearDresSession();
+        setBridgeToken("");
+        setCurrentTaskName("");
+        setHasValidatedRun(false);
+
+        setErrorMessage(
+          "DRES session expired. Please reconnect.",
+        );
+      } else {
+        setErrorMessage(message);
+      }
+    } finally {
+      setIsStartingTask(false);
+    }
+  }
   return (
     <div className="dres-panel">
       <div className="dres-panel__header">
@@ -332,7 +403,23 @@ export function DresConnectionPanel({
           <div className="dres-panel__actions">
             <button
               type="button"
-              disabled={isSavingRun}
+              disabled={
+                isSavingRun ||
+                isStartingTask
+              }
+              onClick={handleStartTask}
+            >
+              {isStartingTask
+                ? "Starting..."
+                : "Start task"}
+            </button>
+
+            <button
+              type="button"
+              disabled={
+                isSavingRun ||
+                isStartingTask
+              }
               onClick={handleSaveRunId}
             >
               {isSavingRun
@@ -342,7 +429,10 @@ export function DresConnectionPanel({
 
             <button
               type="button"
-              disabled={isSavingRun}
+              disabled={
+                isSavingRun ||
+                isStartingTask
+              }
               onClick={handleDisconnect}
             >
               Disconnect
