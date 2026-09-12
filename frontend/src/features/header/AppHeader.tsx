@@ -11,7 +11,9 @@ import {
 import {
   QaSubmissionModal,
 } from "../submission/QaSubmissionModal";
-
+import {
+  TrakeSubmissionModal,
+} from "../submission/TrakeSubmissionModal";
 import "./AppHeader.css";
 
 export type TaskId =
@@ -51,7 +53,10 @@ export function AppHeader({
     isQaSubmitOpen,
     setIsQaSubmitOpen,
   ] = useState(false);
-
+  const [
+    isTrakeSubmitOpen,
+    setIsTrakeSubmitOpen,
+  ] = useState(false);
   return (
     <header className="app-header">
       <div className="app-header__brand">
@@ -96,6 +101,7 @@ export function AppHeader({
           onClick={() => {
             setIsManualSubmitOpen(true);
             setIsQaSubmitOpen(false);
+            setIsTrakeSubmitOpen(false);
             setIsDresOpen(false);
           }}
         >
@@ -108,12 +114,24 @@ export function AppHeader({
           onClick={() => {
             setIsQaSubmitOpen(true);
             setIsManualSubmitOpen(false);
+            setIsTrakeSubmitOpen(false);
             setIsDresOpen(false);
           }}
         >
           QA Submit
         </button>
-
+        <button
+          type="button"
+          className="app-header__manual-button"
+          onClick={() => {
+            setIsTrakeSubmitOpen(true);
+            setIsManualSubmitOpen(false);
+            setIsQaSubmitOpen(false);
+            setIsDresOpen(false);
+          }}
+        >
+          TRAKE Submit
+        </button>
         <div className="app-header__dres">
           <button
             type="button"
@@ -125,6 +143,7 @@ export function AppHeader({
 
               setIsManualSubmitOpen(false);
               setIsQaSubmitOpen(false);
+              setIsTrakeSubmitOpen(false);
             }}
           >
             DRES
@@ -151,6 +170,13 @@ export function AppHeader({
           <QaSubmissionModal
             onClose={() =>
               setIsQaSubmitOpen(false)
+            }
+          />
+        )}
+                {isTrakeSubmitOpen && (
+          <TrakeSubmissionModal
+            onClose={() =>
+              setIsTrakeSubmitOpen(false)
             }
           />
         )}
