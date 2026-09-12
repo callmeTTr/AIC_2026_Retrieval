@@ -17,7 +17,14 @@ export interface DresCurrentTask {
 export type DresSubmissionMode =
   | "KIS"
   | "QA"
+  | "TRAKE"
   | "UNKNOWN";
+
+export type DresSubmissionModeSetting =
+  | "AUTO"
+  | "KIS"
+  | "QA"
+  | "TRAKE";
 
 export function getDresSubmissionMode(
   task: DresCurrentTask | null | undefined,
@@ -37,6 +44,17 @@ export function getDresSubmissionMode(
   }
 
   return "UNKNOWN";
+}
+
+export function resolveDresSubmissionMode(
+  task: DresCurrentTask | null | undefined,
+  setting: DresSubmissionModeSetting,
+): DresSubmissionMode {
+  if (setting !== "AUTO") {
+    return setting;
+  }
+
+  return getDresSubmissionMode(task);
 }
 export interface DresStartTaskResponse {
   status: string;

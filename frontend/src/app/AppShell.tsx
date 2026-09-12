@@ -33,6 +33,7 @@ import type {
 } from "../features/refinement/refinement.types";
 import type {
   DresCurrentTask,
+  DresSubmissionModeSetting,
 } from "../features/dres/dres.api";
 import "./AppShell.css";
 
@@ -43,6 +44,11 @@ export function AppShell() {
     currentDresTask,
     setCurrentDresTask,
   ] = useState<DresCurrentTask | null>(null);
+
+  const [
+    dresSubmissionModeSetting,
+    setDresSubmissionModeSetting,
+  ] = useState<DresSubmissionModeSetting>("AUTO");
   const [
     originalRequest,
     setOriginalRequest,
@@ -106,6 +112,12 @@ export function AppShell() {
         onTaskChange={setSelectedTask}
         currentDresTask={currentDresTask}
         onDresTaskChange={setCurrentDresTask}
+        dresSubmissionModeSetting={
+          dresSubmissionModeSetting
+        }
+        onDresSubmissionModeSettingChange={
+          setDresSubmissionModeSetting
+        }
       />
 
       <div className="app-shell__content">

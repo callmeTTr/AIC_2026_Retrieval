@@ -4,8 +4,9 @@ import {
   DresConnectionPanel,
 } from "../dres/DresConnectionPanel";
 import {
-  getDresSubmissionMode,
+  resolveDresSubmissionMode,
   type DresCurrentTask,
+  type DresSubmissionModeSetting,
 } from "../dres/dres.api";
 import {
   ManualKisSubmissionModal,
@@ -32,6 +33,10 @@ interface AppHeaderProps {
   onDresTaskChange: (
     task: DresCurrentTask | null,
   ) => void;
+  dresSubmissionModeSetting: DresSubmissionModeSetting;
+  onDresSubmissionModeSettingChange: (
+    setting: DresSubmissionModeSetting,
+  ) => void;
 }
 
 const tasks: Array<{
@@ -49,6 +54,8 @@ export function AppHeader({
   onTaskChange,
   currentDresTask,
   onDresTaskChange,
+  dresSubmissionModeSetting,
+  onDresSubmissionModeSettingChange,
 }: AppHeaderProps) {
   const [isDresOpen, setIsDresOpen] =
     useState(false);
@@ -67,7 +74,10 @@ export function AppHeader({
     setIsTrakeSubmitOpen,
   ] = useState(false);
   const submissionMode =
-    getDresSubmissionMode(currentDresTask);
+    resolveDresSubmissionMode(
+      currentDresTask,
+      dresSubmissionModeSetting,
+    );
   return (
     <header className="app-header">
       <div className="app-header__brand">
@@ -117,33 +127,21 @@ export function AppHeader({
           }
           onClick={() => {
             setIsDresOpen(false);
-            setIsTrakeSubmitOpen(false);
 
-            if (submissionMode === "KIS") {
-              setIsManualSubmitOpen(true);
-              setIsQaSubmitOpen(false);
-              return;
-            }
+            setIsManualSubmitOpen(
+              submissionMode === "KIS",
+            );
 
-            if (submissionMode === "QA") {
-              setIsQaSubmitOpen(true);
-              setIsManualSubmitOpen(false);
-            }
+            setIsQaSubmitOpen(
+              submissionMode === "QA",
+            );
+
+            setIsTrakeSubmitOpen(
+              submissionMode === "TRAKE",
+            );
           }}
         >
           Submit
-        </button>
-        <button
-          type="button"
-          className="app-header__manual-button"
-          onClick={() => {
-            setIsTrakeSubmitOpen(true);
-            setIsManualSubmitOpen(false);
-            setIsQaSubmitOpen(false);
-            setIsDresOpen(false);
-          }}
-        >
-          TRAKE Submit
         </button>
         <div className="app-header__dres">
           <button
@@ -169,6 +167,12 @@ export function AppHeader({
               }
               onCurrentTaskChange={
                 onDresTaskChange
+              }
+              submissionModeSetting={
+                dresSubmissionModeSetting
+              }
+              onSubmissionModeSettingChange={
+                onDresSubmissionModeSettingChange
               }
             />
           )}

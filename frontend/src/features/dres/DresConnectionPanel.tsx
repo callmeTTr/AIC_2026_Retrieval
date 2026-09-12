@@ -5,6 +5,7 @@ import {
   loginToDres,
   startDresTask,
   type DresCurrentTask,
+  type DresSubmissionModeSetting,
 } from "./dres.api";
 
 import {
@@ -24,11 +25,17 @@ interface DresConnectionPanelProps {
   onCurrentTaskChange: (
     task: DresCurrentTask | null,
   ) => void;
+  submissionModeSetting: DresSubmissionModeSetting;
+  onSubmissionModeSettingChange: (
+    setting: DresSubmissionModeSetting,
+  ) => void;
 }
 
 export function DresConnectionPanel({
   onClose,
   onCurrentTaskChange,
+  submissionModeSetting,
+  onSubmissionModeSettingChange,
 }: DresConnectionPanelProps) {
   const [runId, setRunId] =
     useState(getDresRunId());
@@ -219,6 +226,7 @@ export function DresConnectionPanel({
       );
 
       onCurrentTaskChange(task);
+      onSubmissionModeSettingChange("AUTO");
       setHasValidatedRun(true);
 
       // Password is intentionally never stored.
@@ -239,6 +247,7 @@ export function DresConnectionPanel({
     setBridgeToken("");
     setCurrentTaskName("");
     onCurrentTaskChange(null);
+    onSubmissionModeSettingChange("AUTO");
     setHasValidatedRun(false);
     setPassword("");
     setErrorMessage(null);
@@ -275,6 +284,7 @@ export function DresConnectionPanel({
       );
 
       onCurrentTaskChange(task);
+      onSubmissionModeSettingChange("AUTO");
       setHasValidatedRun(true);
     } catch {
       setRunId(getDresRunId());
@@ -402,7 +412,36 @@ export function DresConnectionPanel({
               </div>
             )
           )}
+          <label className="dres-panel__field">
+            <span>Submission mode</span>
 
+            <select
+              value={submissionModeSetting}
+              disabled={
+                isSavingRun ||
+                isStartingTask
+              }
+              onChange={(event) =>
+                onSubmissionModeSettingChange(
+                  event.target
+                    .value as DresSubmissionModeSetting,
+                )
+              }
+            >
+              <option value="AUTO">
+                Auto — use DRES task type
+              </option>
+              <option value="KIS">
+                KIS
+              </option>
+              <option value="QA">
+                QA
+              </option>
+              <option value="TRAKE">
+                TRAKE
+              </option>
+            </select>
+          </label>
           <label className="dres-panel__field">
             <span>Run ID</span>
 
