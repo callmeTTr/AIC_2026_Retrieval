@@ -31,13 +31,18 @@ import {
 import type {
   RefinementResponse,
 } from "../features/refinement/refinement.types";
-
+import type {
+  DresCurrentTask,
+} from "../features/dres/dres.api";
 import "./AppShell.css";
 
 export function AppShell() {
   const [selectedTask, setSelectedTask] =
     useState<TaskId>("task_1");
-
+  const [
+    currentDresTask,
+    setCurrentDresTask,
+  ] = useState<DresCurrentTask | null>(null);
   const [
     originalRequest,
     setOriginalRequest,
@@ -99,6 +104,8 @@ export function AppShell() {
       <AppHeader
         selectedTask={selectedTask}
         onTaskChange={setSelectedTask}
+        currentDresTask={currentDresTask}
+        onDresTaskChange={setCurrentDresTask}
       />
 
       <div className="app-shell__content">

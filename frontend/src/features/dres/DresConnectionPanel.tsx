@@ -4,6 +4,7 @@ import {
   getCurrentDresTask,
   loginToDres,
   startDresTask,
+  type DresCurrentTask,
 } from "./dres.api";
 
 import {
@@ -20,10 +21,14 @@ import "./DresConnectionPanel.css";
 
 interface DresConnectionPanelProps {
   onClose: () => void;
+  onCurrentTaskChange: (
+    task: DresCurrentTask | null,
+  ) => void;
 }
 
 export function DresConnectionPanel({
   onClose,
+  onCurrentTaskChange,
 }: DresConnectionPanelProps) {
   const [runId, setRunId] =
     useState(getDresRunId());
@@ -60,7 +65,7 @@ export function DresConnectionPanel({
   async function validateRun(
     evaluationId: string,
     token: string,
-  ): Promise<string | null> {
+  ): Promise<DresCurrentTask | null> {
     try {
       const task = await getCurrentDresTask(
         evaluationId,
@@ -73,7 +78,7 @@ export function DresConnectionPanel({
         );
       }
 
-      return task.name;
+      return task;
     } catch (error) {
       const message =
         error instanceof Error
@@ -127,15 +132,16 @@ export function DresConnectionPanel({
       savedRunId,
       savedToken,
     )
-      .then((taskName) => {
+      .then((task) => {
         if (cancelled) {
           return;
         }
 
         setCurrentTaskName(
-          taskName ?? "",
+          task?.name ?? "",
         );
 
+        onCurrentTaskChange(task);
         setHasValidatedRun(true);
       })
       .catch((error) => {
@@ -155,6 +161,7 @@ export function DresConnectionPanel({
           clearDresSession();
           setBridgeToken("");
           setCurrentTaskName("");
+          onCurrentTaskChange(null);
           setHasValidatedRun(false);
         }
 
@@ -164,7 +171,7 @@ export function DresConnectionPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [onCurrentTaskChange]);
 
   async function handleConnect() {
     const normalizedRunId = runId.trim();
@@ -191,7 +198,7 @@ export function DresConnectionPanel({
         password,
       );
 
-      const taskName = await validateRun(
+      const task = await validateRun(
         normalizedRunId,
         response.access_token,
       );
@@ -208,8 +215,10 @@ export function DresConnectionPanel({
       );
       setBridgeToken(response.access_token);
       setCurrentTaskName(
-        taskName ?? "",
+        task?.name ?? "",
       );
+
+      onCurrentTaskChange(task);
       setHasValidatedRun(true);
 
       // Password is intentionally never stored.
@@ -229,6 +238,7 @@ export function DresConnectionPanel({
     clearDresSession();
     setBridgeToken("");
     setCurrentTaskName("");
+    onCurrentTaskChange(null);
     setHasValidatedRun(false);
     setPassword("");
     setErrorMessage(null);
@@ -253,7 +263,7 @@ export function DresConnectionPanel({
     setErrorMessage(null);
 
     try {
-      const taskName = await validateRun(
+      const task = await validateRun(
         normalizedRunId,
         bridgeToken,
       );
@@ -261,8 +271,10 @@ export function DresConnectionPanel({
       setDresRunId(normalizedRunId);
       setRunId(normalizedRunId);
       setCurrentTaskName(
-        taskName ?? "",
+        task?.name ?? "",
       );
+
+      onCurrentTaskChange(task);
       setHasValidatedRun(true);
     } catch {
       setRunId(getDresRunId());
@@ -301,7 +313,7 @@ export function DresConnectionPanel({
         bridgeToken,
       );
 
-      const taskName =
+      const task =
         await validateRun(
           normalizedRunId,
           bridgeToken,
@@ -309,8 +321,10 @@ export function DresConnectionPanel({
 
       setDresRunId(normalizedRunId);
       setCurrentTaskName(
-        taskName ?? "",
+        task?.name ?? "",
       );
+
+      onCurrentTaskChange(task);
       setHasValidatedRun(true);
     } catch (error) {
       const message =
@@ -332,6 +346,7 @@ export function DresConnectionPanel({
         clearDresSession();
         setBridgeToken("");
         setCurrentTaskName("");
+        onCurrentTaskChange(null);
         setHasValidatedRun(false);
 
         setErrorMessage(

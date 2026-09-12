@@ -3,7 +3,10 @@ import { useState } from "react";
 import {
   DresConnectionPanel,
 } from "../dres/DresConnectionPanel";
-
+import {
+  getDresSubmissionMode,
+  type DresCurrentTask,
+} from "../dres/dres.api";
 import {
   ManualKisSubmissionModal,
 } from "../submission/ManualKisSubmissionModal";
@@ -25,6 +28,10 @@ export type TaskId =
 interface AppHeaderProps {
   selectedTask: TaskId;
   onTaskChange: (task: TaskId) => void;
+  currentDresTask: DresCurrentTask | null;
+  onDresTaskChange: (
+    task: DresCurrentTask | null,
+  ) => void;
 }
 
 const tasks: Array<{
@@ -40,6 +47,8 @@ const tasks: Array<{
 export function AppHeader({
   selectedTask,
   onTaskChange,
+  currentDresTask,
+  onDresTaskChange,
 }: AppHeaderProps) {
   const [isDresOpen, setIsDresOpen] =
     useState(false);
@@ -57,6 +66,8 @@ export function AppHeader({
     isTrakeSubmitOpen,
     setIsTrakeSubmitOpen,
   ] = useState(false);
+  const submissionMode =
+    getDresSubmissionMode(currentDresTask);
   return (
     <header className="app-header">
       <div className="app-header__brand">
@@ -98,27 +109,29 @@ export function AppHeader({
         <button
           type="button"
           className="app-header__manual-button"
+          disabled={submissionMode === "UNKNOWN"}
+          title={
+            submissionMode === "UNKNOWN"
+              ? "Connect to a supported active DRES task first."
+              : `Current submission mode: ${submissionMode}`
+          }
           onClick={() => {
-            setIsManualSubmitOpen(true);
-            setIsQaSubmitOpen(false);
-            setIsTrakeSubmitOpen(false);
             setIsDresOpen(false);
-          }}
-        >
-          Manual Submit
-        </button>
+            setIsTrakeSubmitOpen(false);
 
-        <button
-          type="button"
-          className="app-header__manual-button"
-          onClick={() => {
-            setIsQaSubmitOpen(true);
-            setIsManualSubmitOpen(false);
-            setIsTrakeSubmitOpen(false);
-            setIsDresOpen(false);
+            if (submissionMode === "KIS") {
+              setIsManualSubmitOpen(true);
+              setIsQaSubmitOpen(false);
+              return;
+            }
+
+            if (submissionMode === "QA") {
+              setIsQaSubmitOpen(true);
+              setIsManualSubmitOpen(false);
+            }
           }}
         >
-          QA Submit
+          Submit
         </button>
         <button
           type="button"
@@ -153,6 +166,9 @@ export function AppHeader({
             <DresConnectionPanel
               onClose={() =>
                 setIsDresOpen(false)
+              }
+              onCurrentTaskChange={
+                onDresTaskChange
               }
             />
           )}

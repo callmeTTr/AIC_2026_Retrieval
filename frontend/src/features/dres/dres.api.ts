@@ -8,8 +8,35 @@ export interface DresLoginResponse {
 }
 
 export interface DresCurrentTask {
-  name?: string;
-  [key: string]: unknown;
+  name: string;
+  taskGroup: string;
+  taskType: string;
+  duration: number | null;
+}
+
+export type DresSubmissionMode =
+  | "KIS"
+  | "QA"
+  | "UNKNOWN";
+
+export function getDresSubmissionMode(
+  task: DresCurrentTask | null | undefined,
+): DresSubmissionMode {
+  if (!task) {
+    return "UNKNOWN";
+  }
+
+  const taskType = task.taskType.trim();
+
+  if (taskType === "Textual Known Item Search") {
+    return "KIS";
+  }
+
+  if (taskType === "LSC Question & Answer Text") {
+    return "QA";
+  }
+
+  return "UNKNOWN";
 }
 export interface DresStartTaskResponse {
   status: string;
