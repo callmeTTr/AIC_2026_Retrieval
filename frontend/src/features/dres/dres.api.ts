@@ -20,7 +20,36 @@ export interface DresStartTaskResponse {
     [key: string]: unknown;
   };
 }
+export interface DresTrakeEvent {
+  media_item_name: string;
+  timestamp_seconds: number;
+  media_item_collection_name?: string;
+  segment_duration_seconds?: number;
+}
 
+export interface DresTrakeSubmitRequest {
+  events: DresTrakeEvent[];
+}
+
+export interface DresTrakeSubmitResponse {
+  status: string;
+  dres_http_status: number;
+  task: string;
+  submitted: {
+    events: Array<{
+      index: number;
+      media_item_name: string;
+      start_ms: number;
+      end_ms: number;
+    }>;
+  };
+  dres_response: {
+    status?: boolean;
+    submission?: string;
+    description?: string;
+    [key: string]: unknown;
+  };
+}
 export interface DresQaSubmitRequest {
   answer: string;
 }
@@ -186,6 +215,24 @@ export function submitQaToDres(
 ): Promise<DresQaSubmitResponse> {
   return dresRequest<DresQaSubmitResponse>(
     `/submit-qa/${encodeURIComponent(
+      evaluationId,
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "X-Bridge-Token": bridgeToken,
+      },
+      body: JSON.stringify(request),
+    },
+  );
+}
+export function submitTrakeToDres(
+  evaluationId: string,
+  bridgeToken: string,
+  request: DresTrakeSubmitRequest,
+): Promise<DresTrakeSubmitResponse> {
+  return dresRequest<DresTrakeSubmitResponse>(
+    `/submit-trake/${encodeURIComponent(
       evaluationId,
     )}`,
     {
