@@ -6,7 +6,10 @@ export interface DresLoginResponse {
   role: string | null;
   access_token: string;
 }
-
+export interface DresLogoutResponse {
+  status: string;
+  session_removed: boolean;
+}
 export interface DresCurrentTask {
   name: string;
   taskGroup: string;
@@ -202,7 +205,19 @@ export function loginToDres(
     },
   );
 }
-
+export function logoutFromDres(
+  bridgeToken: string,
+): Promise<DresLogoutResponse> {
+  return dresRequest<DresLogoutResponse>(
+    "/logout",
+    {
+      method: "POST",
+      headers: {
+        "X-Bridge-Token": bridgeToken,
+      },
+    },
+  );
+}
 export function getCurrentDresTask(
   evaluationId: string,
   bridgeToken: string,

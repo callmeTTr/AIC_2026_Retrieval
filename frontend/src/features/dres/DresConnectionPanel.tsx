@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   getCurrentDresTask,
   loginToDres,
+  logoutFromDres,
   startDresTask,
   type DresCurrentTask,
   type DresSubmissionModeSetting,
@@ -242,15 +243,26 @@ export function DresConnectionPanel({
     }
   }
 
-  function handleDisconnect() {
-    clearDresSession();
-    setBridgeToken("");
-    setCurrentTaskName("");
-    onCurrentTaskChange(null);
-    onSubmissionModeSettingChange("AUTO");
-    setHasValidatedRun(false);
-    setPassword("");
-    setErrorMessage(null);
+  async function handleDisconnect() {
+    const tokenToRevoke = bridgeToken;
+
+    try {
+      if (tokenToRevoke) {
+        await logoutFromDres(tokenToRevoke);
+      }
+    } catch {
+      // Local disconnect must still succeed
+      // even if the bridge session already expired.
+    } finally {
+      clearDresSession();
+      setBridgeToken("");
+      setCurrentTaskName("");
+      onCurrentTaskChange(null);
+      onSubmissionModeSettingChange("AUTO");
+      setHasValidatedRun(false);
+      setPassword("");
+      setErrorMessage(null);
+    }
   }
 
   async function handleSaveRunId() {
