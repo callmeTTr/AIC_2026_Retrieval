@@ -1,0 +1,77 @@
+{
+  "version": "AIC_REHEARSAL_GOLD_V1",
+  "purpose": "Stable frontend and DRES regression rehearsal set.",
+  "notes": [
+    "Do not store DRES evaluation run IDs in this file because run IDs change.",
+    "KIS and QA cases validate correctness.",
+    "TRAKE currently uses a KIS temporal transport surrogate and validates transport/order, not task correctness."
+  ],
+  "cases": [
+    {
+      "id": "GOLD-01-KIS",
+      "task_type": "KIS",
+      "name": "Known exact frame submission",
+      "input": {
+        "video_id": "L21_V001",
+        "frame_index": 23460,
+        "fps": 30,
+        "expected_timestamp_seconds": 782.0
+      },
+      "ground_truth": {
+        "video_id": "L21_V001",
+        "start_seconds": 772.0,
+        "end_seconds": 785.0
+      },
+      "pass_conditions": [
+        "Frontend resolves the selected frame to approximately 782.000 seconds.",
+        "Submitted media item is L21_V001.",
+        "DRES returns CORRECT."
+      ]
+    },
+    {
+      "id": "GOLD-02-QA",
+      "task_type": "QA",
+      "name": "Text-only QA submission",
+      "input": {
+        "answer": "42"
+      },
+      "pass_conditions": [
+        "Submission payload contains the textual answer only.",
+        "No media item or temporal answer is added to the QA payload.",
+        "After judging, DRES returns CORRECT."
+      ]
+    },
+    {
+      "id": "GOLD-03-TRAKE-TRANSPORT",
+      "task_type": "TRAKE",
+      "name": "Ordered temporal transport",
+      "transport_mode": "KIS_TEMPORAL_SURROGATE",
+      "input": {
+        "events": [
+          {
+            "order": 1,
+            "video_id": "L21_V001",
+            "timestamp_seconds": 111.0
+          },
+          {
+            "order": 2,
+            "video_id": "L21_V001",
+            "timestamp_seconds": 222.0
+          },
+          {
+            "order": 3,
+            "video_id": "L21_V001",
+            "timestamp_seconds": 333.0
+          }
+        ]
+      },
+      "pass_conditions": [
+        "Frontend preserves event order 1 -> 2 -> 3.",
+        "Bridge submits all three temporal events.",
+        "Submitted timestamps remain 111 -> 222 -> 333 seconds.",
+        "No event is sorted or reordered automatically.",
+        "A WRONG result from the current KIS surrogate is acceptable and is not a transport failure."
+      ]
+    }
+  ]
+}
