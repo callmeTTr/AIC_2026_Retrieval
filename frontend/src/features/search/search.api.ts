@@ -263,6 +263,13 @@ function normalizeResult(
           timestampText,
         );
 
+  const fps =
+    typeof result.fps === "number" &&
+    Number.isFinite(result.fps) &&
+    result.fps > 0
+      ? result.fps
+      : null;
+
   const frameTimestampSeconds =
     typeof result.frame_timestamp_seconds ===
       "number" &&
@@ -270,14 +277,11 @@ function normalizeResult(
       result.frame_timestamp_seconds,
     )
       ? result.frame_timestamp_seconds
-      : timestampSeconds;
-
-  const fps =
-    typeof result.fps === "number" &&
-    Number.isFinite(result.fps) &&
-    result.fps > 0
-      ? result.fps
-      : null;
+      : typeof frameIndex === "number" &&
+          Number.isFinite(frameIndex) &&
+          fps !== null
+        ? frameIndex / fps
+        : timestampSeconds;
 
   const thumbnailSource =
     result.thumbnail_url ??

@@ -64,13 +64,26 @@ export function SubmissionModal({
   }, [isSubmitting, onClose]);
 
   function handleSubmit() {
+    const timestampSeconds =
+      typeof result.frame_timestamp_seconds ===
+        "number" &&
+      Number.isFinite(
+        result.frame_timestamp_seconds,
+      )
+        ? result.frame_timestamp_seconds
+        : typeof result.fps === "number" &&
+            Number.isFinite(result.fps) &&
+            result.fps > 0
+          ? result.frame_index / result.fps
+          : result.timestamp_seconds;
+
     submissionMutation.mutate({
       task,
       search_id: searchId,
       video_id: result.video_id,
       frame_index: result.frame_index,
       timestamp_seconds:
-        result.timestamp_seconds,
+        timestampSeconds,
     });
   }
 
