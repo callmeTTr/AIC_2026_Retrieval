@@ -1,16 +1,29 @@
 ﻿from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import os
 import requests
 import secrets
+
+DRES_BASE_URL = os.getenv(
+    "DRES_BASE_URL",
+    "http://127.0.0.1:8080",
+).rstrip("/")
+
+DRES_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "DRES_ALLOWED_ORIGINS",
+        "http://localhost:5173",
+    ).split(",")
+    if origin.strip()
+]
 
 app = FastAPI(title="AIC DRES Bridge")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=DRES_ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=[
@@ -18,8 +31,6 @@ app.add_middleware(
         "X-Bridge-Token",
     ],
 )
-
-DRES_BASE_URL = "http://127.0.0.1:8080"
 
 # Bridge token -> DRES sessionId
 sessions = {}
