@@ -36,9 +36,22 @@ const VISUAL_MODEL_OPTIONS: Array<{
   },
 ];
 
+function createSceneId(): string {
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `scene-${Date.now()}-${Math.random()
+    .toString(16)
+    .slice(2)}`;
+}
+
 function createEmptyScene(): QueryScene {
   return {
-    id: crypto.randomUUID(),
+    id: createSceneId(),
     visualQuery: "",
     ocrQuery: "",
     asrQuery: "",
