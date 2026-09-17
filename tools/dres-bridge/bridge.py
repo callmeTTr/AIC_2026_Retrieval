@@ -32,6 +32,7 @@ app.add_middleware(
         "GET",
         "POST",
         "PATCH",
+        "DELETE",
         "OPTIONS",
     ],
     allow_headers=[

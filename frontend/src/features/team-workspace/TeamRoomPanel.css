@@ -178,6 +178,8 @@
   transition:
     border-color 150ms ease,
     background-color 150ms ease;
+  position: relative;
+  padding-right: 42px;
 }
 .team-room-panel__item:hover {
   border-color: var(--color-primary);
@@ -186,6 +188,33 @@
 .team-room-panel__item:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+.team-room-panel__delete-item {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.team-room-panel__delete-item:hover {
+  border-color: #f0a3aa;
+  color: #c72f3d;
+  background: #fff5f5;
+}
+
+.team-room-panel__delete-item:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 .team-room-panel__item img {
   width: 88px;

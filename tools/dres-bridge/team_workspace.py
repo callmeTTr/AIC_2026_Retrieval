@@ -280,3 +280,73 @@ def share_candidate(
         "room_code": normalized_code,
         "item": item,
     }
+@router.delete(
+    "/rooms/{room_code}/items/{item_id}"
+)
+def delete_candidate(
+    room_code: str,
+    item_id: str,
+    x_bridge_token: str = Header(...),
+):
+    username = get_authenticated_username(
+        x_bridge_token,
+    )
+
+    normalized_code = normalize_room_code(
+        room_code,
+    )
+
+    with _rooms_lock:
+        room = get_room_or_404(
+            normalized_code,
+        )
+
+        item_index = next(
+            (
+                index
+                for index, item
+                in enumerate(
+                    room["items"]
+                )
+                if item["id"] == item_id
+            ),
+            None,
+        )
+
+        if item_index is None:
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "Shared candidate "
+                    "not found"
+                ),
+            )
+
+        item = room["items"][
+            item_index
+        ]
+
+        can_delete = (
+            item["shared_by"] == username
+            or room["created_by"] == username
+        )
+
+        if not can_delete:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "You cannot delete "
+                    "this shared candidate"
+                ),
+            )
+
+        removed_item = room[
+            "items"
+        ].pop(item_index)
+
+    return {
+        "status": "ok",
+        "room_code": normalized_code,
+        "item_id": removed_item["id"],
+        "deleted_by": username,
+    }

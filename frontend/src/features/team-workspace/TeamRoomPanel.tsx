@@ -2,9 +2,10 @@ import {
   useEffect,
   useState,
 } from "react";
-
+import { Trash2 } from "lucide-react";
 import {
   createTeamRoom,
+  deleteTeamCandidate,
   getTeamRoom,
   type TeamRoom,
   type TeamWorkspaceItem,
@@ -15,7 +16,9 @@ import {
   getTeamRoomCode,
   setTeamRoomCode,
 } from "./team-workspace.session";
-
+import {
+  getDresUsername,
+} from "../dres/dres.session";
 import "./TeamRoomPanel.css";
 
 
@@ -59,6 +62,15 @@ export function TeamRoomPanel({
     errorMessage,
     setErrorMessage,
   ] = useState("");
+  const [
+    deletingItemId,
+    setDeletingItemId,
+  ] = useState<string | null>(
+    null,
+  );
+
+  const currentUsername =
+    getDresUsername().trim();
   const [
     previewItem,
     setPreviewItem,
@@ -230,7 +242,66 @@ export function TeamRoomPanel({
     }
   }
 
+  async function handleDeleteItem(
+    item: TeamWorkspaceItem,
+  ) {
+    if (!roomCode) {
+      return;
+    }
 
+    const confirmed =
+      window.confirm(
+        `Remove ${item.video_id}, frame ${item.frame_index} from Team Room?`,
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingItemId(
+      item.id,
+    );
+
+    setErrorMessage("");
+
+    try {
+      await deleteTeamCandidate(
+        roomCode,
+        item.id,
+      );
+
+      setRoom((currentRoom) => {
+        if (!currentRoom) {
+          return currentRoom;
+        }
+
+        return {
+          ...currentRoom,
+          items:
+            currentRoom.items.filter(
+              (currentItem) =>
+                currentItem.id !==
+                item.id,
+            ),
+        };
+      });
+
+      if (
+        previewItem?.id ===
+        item.id
+      ) {
+        setPreviewItem(null);
+      }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to remove shared candidate.",
+      );
+    } finally {
+      setDeletingItemId(null);
+    }
+  }
   function handleLeaveRoom() {
     clearTeamRoomCode();
 
@@ -422,6 +493,41 @@ export function TeamRoomPanel({
                         </p>
                       )}
                     </div>
+
+                    {(
+                      item.shared_by ===
+                        currentUsername ||
+                      room.created_by ===
+                        currentUsername
+                    ) && (
+                      <button
+                        type="button"
+                        className="team-room-panel__delete-item"
+                        disabled={
+                          deletingItemId ===
+                          item.id
+                        }
+                        aria-label={
+                          `Remove ${item.video_id}, frame ${item.frame_index} from Team Room`
+                        }
+                        title="Remove from Team Room"
+                        onMouseDown={(event) =>
+                          event.stopPropagation()
+                        }
+                        onKeyDown={(event) =>
+                          event.stopPropagation()
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+
+                          void handleDeleteItem(
+                            item,
+                          );
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </article>
                 ),
               )

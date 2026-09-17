@@ -194,3 +194,29 @@ export function shareTeamCandidate(
     },
   );
 }
+export interface DeleteTeamCandidateResponse {
+  status: string;
+  room_code: string;
+  item_id: string;
+  deleted_by: string;
+}
+
+
+export function deleteTeamCandidate(
+  roomCode: string,
+  itemId: string,
+): Promise<DeleteTeamCandidateResponse> {
+  const normalizedRoomCode =
+    roomCode.trim().toUpperCase();
+
+  return workspaceRequest<DeleteTeamCandidateResponse>(
+    `/workspace/rooms/${encodeURIComponent(
+      normalizedRoomCode,
+    )}/items/${encodeURIComponent(
+      itemId,
+    )}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
