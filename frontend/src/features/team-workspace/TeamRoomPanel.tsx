@@ -7,6 +7,7 @@ import {
   createTeamRoom,
   getTeamRoom,
   type TeamRoom,
+  type TeamWorkspaceItem,
 } from "./team-workspace.api";
 
 import {
@@ -58,8 +59,44 @@ export function TeamRoomPanel({
     errorMessage,
     setErrorMessage,
   ] = useState("");
+  const [
+    previewItem,
+    setPreviewItem,
+  ] = useState<TeamWorkspaceItem | null>(
+    null,
+  );
 
+  const [
+    previewMode,
+    setPreviewMode,
+  ] = useState<"frame" | "video">(
+    "frame",
+  );
+  useEffect(() => {
+    if (!previewItem) {
+      return;
+    }
 
+    function handleKeyDown(
+      event: KeyboardEvent,
+    ) {
+      if (event.key === "Escape") {
+        setPreviewItem(null);
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
+    };
+  }, [previewItem]);
   useEffect(() => {
     if (!roomCode) {
       setRoom(null);
@@ -331,6 +368,25 @@ export function TeamRoomPanel({
                   <article
                     key={item.id}
                     className="team-room-panel__item"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={
+                      `Open ${item.video_id}, frame ${item.frame_index}`
+                    }
+                    onClick={() => {
+                      setPreviewItem(item);
+                      setPreviewMode("frame");
+                    }}
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" ||
+                        event.key === " "
+                      ) {
+                        event.preventDefault();
+                        setPreviewItem(item);
+                        setPreviewMode("frame");
+                      }
+                    }}
                   >
                     {item.thumbnail_url && (
                       <img
@@ -381,6 +437,163 @@ export function TeamRoomPanel({
         >
           {errorMessage}
         </p>
+      )}
+      {previewItem && (
+        <div
+          className="team-room-preview"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setPreviewItem(null);
+            }
+          }}
+        >
+          <section
+            className="team-room-preview__dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Preview ${previewItem.video_id}`}
+          >
+            <header className="team-room-preview__header">
+              <div>
+                <span>
+                  Shared by{" "}
+                  {previewItem.shared_by}
+                </span>
+
+                <h2>
+                  {previewItem.video_id}
+                </h2>
+
+                <small>
+                  Frame{" "}
+                  {previewItem.frame_index}
+                  {" · "}
+                  {previewItem.timestamp_seconds.toFixed(
+                    2,
+                  )}
+                  s
+                </small>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPreviewItem(null)
+                }
+                aria-label="Close preview"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="team-room-preview__media">
+              {previewMode === "video" &&
+              previewItem.video_url ? (
+                <video
+                  key={previewItem.id}
+                  src={
+                    previewItem.video_url
+                  }
+                  poster={
+                    previewItem.frame_url ??
+                    previewItem.thumbnail_url ??
+                    undefined
+                  }
+                  controls
+                  autoPlay
+                  playsInline
+                  onLoadedMetadata={(
+                    event,
+                  ) => {
+                    const video =
+                      event.currentTarget;
+
+                    const targetTime =
+                      previewItem.timestamp_seconds;
+
+                    if (
+                      Number.isFinite(
+                        video.duration,
+                      ) &&
+                      video.duration > 0
+                    ) {
+                      video.currentTime =
+                        Math.min(
+                          targetTime,
+                          Math.max(
+                            0,
+                            video.duration -
+                              0.1,
+                          ),
+                        );
+                    } else {
+                      video.currentTime =
+                        targetTime;
+                    }
+                  }}
+                />
+              ) : previewItem.frame_url ||
+                previewItem.thumbnail_url ? (
+                <img
+                  src={
+                    previewItem.frame_url ??
+                    previewItem.thumbnail_url ??
+                    ""
+                  }
+                  alt={
+                    `${previewItem.video_id} ` +
+                    `frame ${previewItem.frame_index}`
+                  }
+                />
+              ) : (
+                <p>
+                  Preview image is not
+                  available.
+                </p>
+              )}
+            </div>
+
+            <footer className="team-room-preview__actions">
+              <button
+                type="button"
+                disabled={
+                  !previewItem.frame_url &&
+                  !previewItem.thumbnail_url
+                }
+                className={
+                  previewMode === "frame"
+                    ? "team-room-preview__action team-room-preview__action--active"
+                    : "team-room-preview__action"
+                }
+                onClick={() =>
+                  setPreviewMode("frame")
+                }
+              >
+                View Frame
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  !previewItem.video_url
+                }
+                className={
+                  previewMode === "video"
+                    ? "team-room-preview__action team-room-preview__action--active"
+                    : "team-room-preview__action"
+                }
+                onClick={() =>
+                  setPreviewMode("video")
+                }
+              >
+                Play Video
+              </button>
+            </footer>
+          </section>
+        </div>
       )}
     </section>
   );
