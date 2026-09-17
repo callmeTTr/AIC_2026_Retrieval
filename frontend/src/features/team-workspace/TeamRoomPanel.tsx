@@ -5,6 +5,7 @@ import {
 import { Trash2 } from "lucide-react";
 import {
   createTeamRoom,
+  createTeamSession,
   deleteTeamCandidate,
   getTeamRoom,
   type TeamRoom,
@@ -12,13 +13,13 @@ import {
 } from "./team-workspace.api";
 
 import {
+  clearTeamIdentity,
   clearTeamRoomCode,
   getTeamRoomCode,
+  getTeamUsername,
   setTeamRoomCode,
+  setTeamUsername,
 } from "./team-workspace.session";
-import {
-  getDresUsername,
-} from "../dres/dres.session";
 import "./TeamRoomPanel.css";
 
 
@@ -69,8 +70,24 @@ export function TeamRoomPanel({
     null,
   );
 
-  const currentUsername =
-    getDresUsername().trim();
+  const [
+    currentUsername,
+    setCurrentUsername,
+  ] = useState(
+    getTeamUsername(),
+  );
+
+  const [
+    identityInput,
+    setIdentityInput,
+  ] = useState(
+    getTeamUsername(),
+  );
+
+  const [
+    isSavingIdentity,
+    setIsSavingIdentity,
+  ] = useState(false);
   const [
     previewItem,
     setPreviewItem,
@@ -162,7 +179,59 @@ export function TeamRoomPanel({
     currentTaskName,
   ]);
 
+  async function handleSaveIdentity() {
+    const normalizedUsername =
+      identityInput.trim();
 
+    if (!normalizedUsername) {
+      setErrorMessage(
+        "Enter your Team name.",
+      );
+      return;
+    }
+
+    setIsSavingIdentity(true);
+    setErrorMessage("");
+
+    try {
+      const response =
+        await createTeamSession(
+          normalizedUsername,
+        );
+
+      setTeamUsername(
+        response.username,
+      );
+
+      setCurrentUsername(
+        response.username,
+      );
+
+      setIdentityInput(
+        response.username,
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to start Team session.",
+      );
+    } finally {
+      setIsSavingIdentity(false);
+    }
+  }
+
+
+  function handleChangeIdentity() {
+    clearTeamIdentity();
+
+    setIdentityInput(
+      currentUsername,
+    );
+
+    setCurrentUsername("");
+    setErrorMessage("");
+  }
   async function handleCreateRoom() {
     setIsLoading(true);
     setErrorMessage("");
@@ -340,7 +409,46 @@ export function TeamRoomPanel({
         </button>
       </header>
 
-      {!roomCode ? (
+      {!currentUsername ? (
+        <div className="team-room-panel__setup">
+          <label>
+            <span>Your Team name</span>
+
+            <input
+              type="text"
+              value={identityInput}
+              maxLength={40}
+              placeholder="Phuc"
+              autoComplete="off"
+              onChange={(event) =>
+                setIdentityInput(
+                  event.target.value,
+                )
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter"
+                ) {
+                  void handleSaveIdentity();
+                }
+              }}
+            />
+          </label>
+
+          <button
+            type="button"
+            className="team-room-panel__primary"
+            disabled={isSavingIdentity}
+            onClick={() =>
+              void handleSaveIdentity()
+            }
+          >
+            {isSavingIdentity
+              ? "Connecting..."
+              : "Continue"}
+          </button>
+        </div>
+      ) : !roomCode ? (
         <div className="team-room-panel__setup">
           <button
             type="button"
@@ -393,6 +501,16 @@ export function TeamRoomPanel({
             }
           >
             Join Room
+          </button>
+          <button
+            type="button"
+            className="team-room-panel__secondary"
+            disabled={isLoading}
+            onClick={
+              handleChangeIdentity
+            }
+          >
+            Change name
           </button>
         </div>
       ) : (

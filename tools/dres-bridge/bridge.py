@@ -5,7 +5,6 @@ import os
 import requests
 import secrets
 from team_workspace import (
-    configure_workspace_auth,
     router as team_workspace_router,
 )
 DRES_BASE_URL = os.getenv(
@@ -38,14 +37,12 @@ app.add_middleware(
     allow_headers=[
         "Content-Type",
         "X-Bridge-Token",
+        "X-Team-Token",
     ],
 )
 
 # Bridge token -> DRES sessionId
 sessions = {}
-
-# Bridge token -> authenticated DRES username
-session_usernames = {}
 
 
 class LoginRequest(BaseModel):
@@ -58,20 +55,6 @@ def get_dres_session(token: str):
     if not session_id:
         raise HTTPException(status_code=401, detail="Invalid bridge token")
     return session_id
-def get_workspace_username(token: str) -> str:
-    session_id = sessions.get(token)
-    username = session_usernames.get(token)
-
-    if not session_id or not username:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid bridge token",
-        )
-
-    return username
-
-
-configure_workspace_auth(get_workspace_username)
 
 @app.get("/health")
 def health():
@@ -132,10 +115,6 @@ def login(payload: LoginRequest):
         or payload.username
     )
 
-    session_usernames[bridge_token] = (
-        authenticated_username
-    )
-
     return {
         "status": "ok",
         "username": authenticated_username,
@@ -147,11 +126,6 @@ def logout(
     x_bridge_token: str = Header(...),
 ):
     removed_session = sessions.pop(
-        x_bridge_token,
-        None,
-    )
-
-    session_usernames.pop(
         x_bridge_token,
         None,
     )

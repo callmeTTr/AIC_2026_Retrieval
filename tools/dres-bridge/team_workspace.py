@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from datetime import datetime, timezone
 import secrets
 import threading
@@ -18,13 +17,16 @@ ROOM_CODE_ALPHABET = (
 
 ROOM_CODE_LENGTH = 6
 
-_workspace_auth_resolver: (
-    Callable[[str], str] | None
-) = None
-
 _rooms_lock = threading.Lock()
+_team_sessions_lock = threading.Lock()
 
 rooms: dict[str, dict] = {}
+
+# Team token -> Team username
+team_sessions: dict[str, str] = {}
+
+class TeamSessionCreate(BaseModel):
+    username: str
 
 
 class TeamCandidateCreate(BaseModel):
@@ -43,28 +45,54 @@ class TeamCandidateCreate(BaseModel):
     note: str = ""
 
 
-def configure_workspace_auth(
-    resolver: Callable[[str], str],
-) -> None:
-    global _workspace_auth_resolver
-    _workspace_auth_resolver = resolver
-
-
 def get_authenticated_username(
-    bridge_token: str,
+    team_token: str,
 ) -> str:
-    if _workspace_auth_resolver is None:
+    with _team_sessions_lock:
+        username = team_sessions.get(
+            team_token,
+        )
+
+    if not username:
         raise HTTPException(
-            status_code=503,
+            status_code=401,
+            detail="Invalid team token",
+        )
+
+    return username
+
+
+@router.post("/session")
+def create_team_session(
+    payload: TeamSessionCreate,
+):
+    username = payload.username.strip()
+
+    if not username:
+        raise HTTPException(
+            status_code=400,
+            detail="Team username is required",
+        )
+
+    if len(username) > 40:
+        raise HTTPException(
+            status_code=400,
             detail=(
-                "Workspace authentication "
-                "is not configured"
+                "Team username must be "
+                "40 characters or fewer"
             ),
         )
 
-    return _workspace_auth_resolver(
-        bridge_token,
-    )
+    team_token = secrets.token_urlsafe(32)
+
+    with _team_sessions_lock:
+        team_sessions[team_token] = username
+
+    return {
+        "status": "ok",
+        "username": username,
+        "team_token": team_token,
+    }
 
 
 def normalize_room_code(
@@ -110,10 +138,10 @@ def get_room_or_404(
 
 @router.post("/rooms")
 def create_room(
-    x_bridge_token: str = Header(...),
+    x_team_token: str = Header(...),
 ):
     username = get_authenticated_username(
-        x_bridge_token,
+        x_team_token,
     )
 
     created_at = datetime.now(
@@ -142,10 +170,10 @@ def create_room(
 def get_room(
     room_code: str,
     task_name: str | None = None,
-    x_bridge_token: str = Header(...),
+    x_team_token: str = Header(...),
 ):
     get_authenticated_username(
-        x_bridge_token,
+        x_team_token,
     )
 
     normalized_code = normalize_room_code(
@@ -189,10 +217,10 @@ def get_room(
 def share_candidate(
     room_code: str,
     payload: TeamCandidateCreate,
-    x_bridge_token: str = Header(...),
+    x_team_token: str = Header(...),
 ):
     username = get_authenticated_username(
-        x_bridge_token,
+        x_team_token,
     )
 
     normalized_code = normalize_room_code(
@@ -286,10 +314,10 @@ def share_candidate(
 def delete_candidate(
     room_code: str,
     item_id: str,
-    x_bridge_token: str = Header(...),
+    x_team_token: str = Header(...),
 ):
     username = get_authenticated_username(
-        x_bridge_token,
+        x_team_token,
     )
 
     normalized_code = normalize_room_code(

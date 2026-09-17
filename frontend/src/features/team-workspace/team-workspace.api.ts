@@ -1,7 +1,11 @@
 import { env } from "../../config/env";
+
 import {
-  getDresBridgeToken,
-} from "../dres/dres.session";
+  clearTeamToken,
+  getTeamToken,
+  getTeamUsername,
+  setTeamToken,
+} from "./team-workspace.session";
 
 
 export interface TeamWorkspaceItem {
@@ -61,7 +65,11 @@ export interface ShareTeamCandidateResponse {
   room_code: string;
   item: TeamWorkspaceItem;
 }
-
+export interface CreateTeamSessionResponse {
+  status: string;
+  username: string;
+  team_token: string;
+}
 
 interface WorkspaceErrorResponse {
   detail?: string;
@@ -81,17 +89,88 @@ function buildWorkspaceUrl(
 }
 
 
-function getWorkspaceToken(): string {
-  const token =
-    getDresBridgeToken().trim();
+export async function createTeamSession(
+  username: string,
+): Promise<CreateTeamSessionResponse> {
+  const normalizedUsername =
+    username.trim();
 
-  if (!token) {
+  if (!normalizedUsername) {
     throw new Error(
-      "Connect to DRES before using Team Room.",
+      "Enter your Team name.",
     );
   }
 
-  return token;
+  const response = await fetch(
+    buildWorkspaceUrl(
+      "/workspace/session",
+    ),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+      body: JSON.stringify({
+        username:
+          normalizedUsername,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    let message =
+      `Team Workspace request failed with status ${response.status}`;
+
+    try {
+      const body =
+        (await response.json()) as WorkspaceErrorResponse;
+
+      if (body.detail) {
+        message = body.detail;
+      }
+    } catch {
+      // Response may not be JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  const session =
+    (await response.json()) as CreateTeamSessionResponse;
+
+  setTeamToken(
+    session.team_token,
+  );
+
+  return session;
+}
+
+
+async function getWorkspaceToken():
+Promise<string> {
+  const existingToken =
+    getTeamToken().trim();
+
+  if (existingToken) {
+    return existingToken;
+  }
+
+  const username =
+    getTeamUsername().trim();
+
+  if (!username) {
+    throw new Error(
+      "Enter your Team name before using Team Room.",
+    );
+  }
+
+  const session =
+    await createTeamSession(
+      username,
+    );
+
+  return session.team_token;
 }
 
 
@@ -99,19 +178,48 @@ async function workspaceRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = getWorkspaceToken();
-
-  const response = await fetch(
-    buildWorkspaceUrl(path),
-    {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Bridge-Token": token,
-        ...options.headers,
+  async function sendRequest(
+    token: string,
+  ) {
+    return fetch(
+      buildWorkspaceUrl(path),
+      {
+        ...options,
+        headers: {
+          "Content-Type":
+            "application/json",
+          "X-Team-Token": token,
+          ...options.headers,
+        },
       },
-    },
-  );
+    );
+  }
+
+  let token =
+    await getWorkspaceToken();
+
+  let response =
+    await sendRequest(token);
+
+  if (response.status === 401) {
+    clearTeamToken();
+
+    const username =
+      getTeamUsername().trim();
+
+    if (username) {
+      const session =
+        await createTeamSession(
+          username,
+        );
+
+      token =
+        session.team_token;
+
+      response =
+        await sendRequest(token);
+    }
+  }
 
   if (!response.ok) {
     let message =
