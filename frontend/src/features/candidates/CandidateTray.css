@@ -68,7 +68,7 @@
 
 .candidate-tray__item {
   display: grid;
-  flex: 0 0 340px;
+  flex: 0 0 300px;
   grid-template-columns: 104px minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
@@ -184,6 +184,16 @@
   border-color: #2868ec;
   color: #1d5ddd;
   background: #eef4ff;
+}
+.candidate-tray__team:disabled {
+  cursor: default;
+}
+
+.candidate-tray__team--shared,
+.candidate-tray__team--shared:hover {
+  border-color: #b8d9c5;
+  color: #18794e;
+  background: #edf8f1;
 }
 .candidate-tray__remove {
   width: 32px;

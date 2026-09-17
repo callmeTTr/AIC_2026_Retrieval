@@ -54,6 +54,10 @@ function getCandidateTimestampSeconds(
 
   return result.timestamp_seconds;
 }
+type TeamShareState =
+  | "idle"
+  | "sending"
+  | "shared";
 interface SubmissionTarget {
   task: TaskId;
   searchId: string;
@@ -107,7 +111,12 @@ export function ResultsWorkspace({
   ] = useState<SubmissionTarget | null>(
     null,
   );
-
+  const [
+    teamShareStateByKey,
+    setTeamShareStateByKey,
+  ] = useState<
+    Record<string, TeamShareState>
+  >({});
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
@@ -128,6 +137,41 @@ export function ResultsWorkspace({
     removeCandidate,
     clearCandidates,
   } = useCandidateSelection();
+  function getTeamShareStateKey(
+    roomCode: string,
+    candidate: CandidateItem,
+  ): string {
+    return [
+      roomCode.trim().toUpperCase(),
+      currentDresTaskName,
+      candidate.key,
+    ].join(":");
+  }
+
+  function getTeamShareState(
+    candidate: CandidateItem,
+  ): TeamShareState {
+    const roomCode =
+      getTeamRoomCode().trim();
+
+    if (
+      !roomCode ||
+      !currentDresTaskName
+    ) {
+      return "idle";
+    }
+
+    const stateKey =
+      getTeamShareStateKey(
+        roomCode,
+        candidate,
+      );
+
+    return (
+      teamShareStateByKey[stateKey] ??
+      "idle"
+    );
+  }
   async function handleSendCandidateToTeam(
     candidate: CandidateItem,
   ) {
@@ -147,6 +191,28 @@ export function ResultsWorkspace({
       );
       return;
     }
+
+    const stateKey =
+      getTeamShareStateKey(
+        roomCode,
+        candidate,
+      );
+
+    if (
+      teamShareStateByKey[stateKey] ===
+        "sending" ||
+      teamShareStateByKey[stateKey] ===
+        "shared"
+    ) {
+      return;
+    }
+
+    setTeamShareStateByKey(
+      (current) => ({
+        ...current,
+        [stateKey]: "sending",
+      }),
+    );
 
     try {
       await shareTeamCandidate(
@@ -181,12 +247,42 @@ export function ResultsWorkspace({
           note: "",
         },
       );
+
+      setTeamShareStateByKey(
+        (current) => ({
+          ...current,
+          [stateKey]: "shared",
+        }),
+      );
     } catch (error) {
-      window.alert(
+      const message =
         error instanceof Error
           ? error.message
-          : "Unable to send candidate to Team Room.",
+          : "Unable to send candidate to Team Room.";
+
+      if (
+        message
+          .toLowerCase()
+          .includes("already shared")
+      ) {
+        setTeamShareStateByKey(
+          (current) => ({
+            ...current,
+            [stateKey]: "shared",
+          }),
+        );
+
+        return;
+      }
+
+      setTeamShareStateByKey(
+        (current) => ({
+          ...current,
+          [stateKey]: "idle",
+        }),
       );
+
+      window.alert(message);
     }
   }
   useEffect(() => {
@@ -437,6 +533,9 @@ export function ResultsWorkspace({
         }
         onSendToTeam={
           handleSendCandidateToTeam
+        }
+        getTeamShareState={
+          getTeamShareState
         }
         onSubmitCandidate={(
           candidate,

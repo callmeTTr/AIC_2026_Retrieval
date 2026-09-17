@@ -1,4 +1,5 @@
 import {
+  Check,
   Send,
   Trash2,
   Users,
@@ -21,14 +22,17 @@ interface CandidateTrayProps {
   onSendToTeam: (
     candidate: CandidateItem,
   ) => void;
+  getTeamShareState: (
+    candidate: CandidateItem,
+  ) => "idle" | "sending" | "shared";
 }
-
 export function CandidateTray({
   candidates,
   onRemoveCandidate,
   onClearCandidates,
   onSubmitCandidate,
   onSendToTeam,
+  getTeamShareState,
 }: CandidateTrayProps) {
   if (candidates.length === 0) {
     return null;
@@ -121,15 +125,51 @@ export function CandidateTray({
                   </button>
                   <button
                     type="button"
-                    className="candidate-tray__team"
+                    className={
+                      getTeamShareState(
+                        candidate,
+                      ) === "shared"
+                        ? "candidate-tray__team candidate-tray__team--shared"
+                        : "candidate-tray__team"
+                    }
+                    disabled={
+                      getTeamShareState(
+                        candidate,
+                      ) !== "idle"
+                    }
+                    title={
+                      getTeamShareState(
+                        candidate,
+                      ) === "shared"
+                        ? "Already shared to Team Room"
+                        : "Share candidate to Team Room"
+                    }
                     onClick={() =>
                       onSendToTeam(
                         candidate,
                       )
                     }
                   >
-                    <Users size={15} />
-                    Send to Team
+                    {getTeamShareState(
+                      candidate,
+                    ) === "shared" ? (
+                      <>
+                        <Check size={15} />
+                        Shared
+                      </>
+                    ) : getTeamShareState(
+                        candidate,
+                      ) === "sending" ? (
+                      <>
+                        <Users size={15} />
+                        Sharing...
+                      </>
+                    ) : (
+                      <>
+                        <Users size={15} />
+                        Team
+                      </>
+                    )}
                   </button>
                   <button
                     type="button"
