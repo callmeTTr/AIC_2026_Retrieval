@@ -4,7 +4,10 @@ from pydantic import BaseModel
 import os
 import requests
 import secrets
-
+from team_workspace import (
+    configure_workspace_auth,
+    router as team_workspace_router,
+)
 DRES_BASE_URL = os.getenv(
     "DRES_BASE_URL",
     "http://127.0.0.1:8080",
@@ -20,12 +23,17 @@ DRES_ALLOWED_ORIGINS = [
 ]
 
 app = FastAPI(title="AIC DRES Bridge")
-
+app.include_router(team_workspace_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=DRES_ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=[
+        "GET",
+        "POST",
+        "PATCH",
+        "OPTIONS",
+    ],
     allow_headers=[
         "Content-Type",
         "X-Bridge-Token",
@@ -34,6 +42,9 @@ app.add_middleware(
 
 # Bridge token -> DRES sessionId
 sessions = {}
+
+# Bridge token -> authenticated DRES username
+session_usernames = {}
 
 
 class LoginRequest(BaseModel):
@@ -46,7 +57,20 @@ def get_dres_session(token: str):
     if not session_id:
         raise HTTPException(status_code=401, detail="Invalid bridge token")
     return session_id
+def get_workspace_username(token: str) -> str:
+    session_id = sessions.get(token)
+    username = session_usernames.get(token)
 
+    if not session_id or not username:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid bridge token",
+        )
+
+    return username
+
+
+configure_workspace_auth(get_workspace_username)
 
 @app.get("/health")
 def health():
@@ -74,17 +98,20 @@ def login(payload: LoginRequest):
             f"{DRES_BASE_URL}/api/v2/login",
             json={
                 "username": payload.username,
-                "password": payload.password
+                "password": payload.password,
             },
-            timeout=10
+            timeout=10,
         )
     except requests.RequestException as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(
+            status_code=502,
+            detail=str(e),
+        )
 
     if r.status_code != 200:
         raise HTTPException(
             status_code=r.status_code,
-            detail="DRES login failed"
+            detail="DRES login failed",
         )
 
     data = r.json()
@@ -93,30 +120,44 @@ def login(payload: LoginRequest):
     if not session_id:
         raise HTTPException(
             status_code=502,
-            detail="DRES returned no sessionId"
+            detail="DRES returned no sessionId",
         )
 
     bridge_token = secrets.token_urlsafe(32)
     sessions[bridge_token] = session_id
 
-    return {
-        "status": "ok",
-        "username": data.get("username"),
-        "role": data.get("role"),
-        "access_token": bridge_token
-    }
-@app.post("/logout")
-def logout(
-    x_bridge_token: str = Header(...)
-):
-    removed_session = sessions.pop(
-        x_bridge_token,
-        None
+    authenticated_username = (
+        data.get("username")
+        or payload.username
+    )
+
+    session_usernames[bridge_token] = (
+        authenticated_username
     )
 
     return {
         "status": "ok",
-        "session_removed": removed_session is not None
+        "username": authenticated_username,
+        "role": data.get("role"),
+        "access_token": bridge_token,
+    }
+@app.post("/logout")
+def logout(
+    x_bridge_token: str = Header(...),
+):
+    removed_session = sessions.pop(
+        x_bridge_token,
+        None,
+    )
+
+    session_usernames.pop(
+        x_bridge_token,
+        None,
+    )
+
+    return {
+        "status": "ok",
+        "session_removed": removed_session is not None,
     }
 
 @app.get("/current-task/{evaluation_id}")

@@ -1,6 +1,7 @@
 import {
   Send,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 
@@ -17,6 +18,9 @@ interface CandidateTrayProps {
   onSubmitCandidate: (
     candidate: CandidateItem,
   ) => void;
+  onSendToTeam: (
+    candidate: CandidateItem,
+  ) => void;
 }
 
 export function CandidateTray({
@@ -24,6 +28,7 @@ export function CandidateTray({
   onRemoveCandidate,
   onClearCandidates,
   onSubmitCandidate,
+  onSendToTeam,
 }: CandidateTrayProps) {
   if (candidates.length === 0) {
     return null;
@@ -114,7 +119,18 @@ export function CandidateTray({
                     <Send size={15} />
                     Submit
                   </button>
-
+                  <button
+                    type="button"
+                    className="candidate-tray__team"
+                    onClick={() =>
+                      onSendToTeam(
+                        candidate,
+                      )
+                    }
+                  >
+                    <Users size={15} />
+                    Send to Team
+                  </button>
                   <button
                     type="button"
                     className="candidate-tray__remove"

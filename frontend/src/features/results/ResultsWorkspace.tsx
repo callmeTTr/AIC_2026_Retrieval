@@ -8,7 +8,17 @@ import { RefinementModal } from "../refinement/RefinementModal";
 import type { RefinementResponse } from "../refinement/refinement.types";
 import { SubmissionModal } from "../submission/SubmissionModal";
 import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
+import {
+  shareTeamCandidate,
+} from "../team-workspace/team-workspace.api";
 
+import {
+  getTeamRoomCode,
+} from "../team-workspace/team-workspace.session";
+
+import type {
+  CandidateItem,
+} from "../candidates/candidate.types";
 import type {
   SearchRequest,
   SearchResponse,
@@ -19,7 +29,31 @@ import type {
 import { ResultCard } from "./ResultCard";
 
 import "./ResultsWorkspace.css";
+function getCandidateTimestampSeconds(
+  result: SearchResult,
+): number {
+  if (
+    typeof result.frame_timestamp_seconds ===
+      "number" &&
+    Number.isFinite(
+      result.frame_timestamp_seconds,
+    )
+  ) {
+    return result.frame_timestamp_seconds;
+  }
 
+  if (
+    typeof result.fps === "number" &&
+    result.fps > 0
+  ) {
+    return (
+      result.frame_index /
+      result.fps
+    );
+  }
+
+  return result.timestamp_seconds;
+}
 interface SubmissionTarget {
   task: TaskId;
   searchId: string;
@@ -28,6 +62,7 @@ interface SubmissionTarget {
 
 interface ResultsWorkspaceProps {
   response?: SearchResponse;
+  currentDresTaskName: string;
   originalRequest?: SearchRequest;
   refinementIteration: number;
   isLoading: boolean;
@@ -39,6 +74,7 @@ interface ResultsWorkspaceProps {
 
 export function ResultsWorkspace({
   response,
+  currentDresTaskName,
   originalRequest,
   refinementIteration,
   isLoading,
@@ -92,7 +128,67 @@ export function ResultsWorkspace({
     removeCandidate,
     clearCandidates,
   } = useCandidateSelection();
+  async function handleSendCandidateToTeam(
+    candidate: CandidateItem,
+  ) {
+    const roomCode =
+      getTeamRoomCode().trim();
 
+    if (!roomCode) {
+      window.alert(
+        "Create or join a Team Room first.",
+      );
+      return;
+    }
+
+    if (!currentDresTaskName) {
+      window.alert(
+        "Connect to an active DRES task first.",
+      );
+      return;
+    }
+
+    try {
+      await shareTeamCandidate(
+        roomCode,
+        {
+          task_name:
+            currentDresTaskName,
+
+          candidate_key:
+            candidate.key,
+
+          video_id:
+            candidate.result.video_id,
+
+          frame_index:
+            candidate.result.frame_index,
+
+          timestamp_seconds:
+            getCandidateTimestampSeconds(
+              candidate.result,
+            ),
+
+          thumbnail_url:
+            candidate.result.thumbnail_url,
+
+          frame_url:
+            candidate.result.frame_url,
+
+          video_url:
+            candidate.result.video_url,
+
+          note: "",
+        },
+      );
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to send candidate to Team Room.",
+      );
+    }
+  }
   useEffect(() => {
     setSelectedResultIndex(null);
     setNeighborResult(null);
@@ -338,6 +434,9 @@ export function ResultsWorkspace({
         }
         onClearCandidates={
           clearCandidates
+        }
+        onSendToTeam={
+          handleSendCandidateToTeam
         }
         onSubmitCandidate={(
           candidate,

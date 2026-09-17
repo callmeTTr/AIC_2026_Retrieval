@@ -68,7 +68,7 @@
 
 .candidate-tray__item {
   display: grid;
-  flex: 0 0 280px;
+  flex: 0 0 340px;
   grid-template-columns: 104px minmax(0, 1fr);
   gap: 12px;
   min-width: 0;
@@ -137,6 +137,7 @@
 }
 
 .candidate-tray__submit,
+.candidate-tray__team,
 .candidate-tray__remove {
   display: inline-flex;
   align-items: center;
@@ -161,7 +162,29 @@
 .candidate-tray__submit:hover {
   background: #1d5ddd;
 }
+.candidate-tray__team {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #b8c8df;
+  border-radius: 8px;
+  color: #28466f;
+  background: #f5f8fd;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 750;
+  cursor: pointer;
+}
 
+.candidate-tray__team:hover {
+  border-color: #2868ec;
+  color: #1d5ddd;
+  background: #eef4ff;
+}
 .candidate-tray__remove {
   width: 32px;
   height: 32px;

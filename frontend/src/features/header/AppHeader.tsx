@@ -4,6 +4,9 @@ import {
   DresConnectionPanel,
 } from "../dres/DresConnectionPanel";
 import {
+  TeamRoomPanel,
+} from "../team-workspace/TeamRoomPanel";
+import {
   resolveDresSubmissionMode,
   type DresCurrentTask,
   type DresSubmissionModeSetting,
@@ -59,7 +62,8 @@ export function AppHeader({
 }: AppHeaderProps) {
   const [isDresOpen, setIsDresOpen] =
     useState(false);
-
+  const [isTeamOpen, setIsTeamOpen] =
+    useState(false);
   const [
     isManualSubmitOpen,
     setIsManualSubmitOpen,
@@ -127,6 +131,7 @@ export function AppHeader({
           }
           onClick={() => {
             setIsDresOpen(false);
+            setIsTeamOpen(false);
 
             setIsManualSubmitOpen(
               submissionMode === "KIS",
@@ -152,6 +157,7 @@ export function AppHeader({
                 (current) => !current,
               );
 
+              setIsTeamOpen(false);
               setIsManualSubmitOpen(false);
               setIsQaSubmitOpen(false);
               setIsTrakeSubmitOpen(false);
@@ -177,7 +183,35 @@ export function AppHeader({
             />
           )}
         </div>
+        <div className="app-header__team">
+          <button
+            type="button"
+            className="app-header__team-button"
+            onClick={() => {
+              setIsTeamOpen(
+                (current) => !current,
+              );
 
+              setIsDresOpen(false);
+              setIsManualSubmitOpen(false);
+              setIsQaSubmitOpen(false);
+              setIsTrakeSubmitOpen(false);
+            }}
+          >
+            TEAM
+          </button>
+
+          {isTeamOpen && (
+            <TeamRoomPanel
+              currentTaskName={
+                currentDresTask?.name ?? ""
+              }
+              onClose={() =>
+                setIsTeamOpen(false)
+              }
+            />
+          )}
+        </div>
         {isManualSubmitOpen && (
           <ManualKisSubmissionModal
             onClose={() =>

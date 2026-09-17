@@ -127,6 +127,9 @@ export function AppShell() {
 
         <ResultsWorkspace
           response={activeResponse}
+          currentDresTaskName={
+            currentDresTask?.name ?? ""
+          }
           originalRequest={
             originalRequest ?? undefined
           }

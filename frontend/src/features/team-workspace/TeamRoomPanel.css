@@ -1,0 +1,239 @@
+.team-room-panel {
+  position: fixed;
+  top: 84px;
+  right: 20px;
+  z-index: 1000;
+  width: min(390px, calc(100vw - 32px));
+  max-height: calc(100dvh - 104px);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  box-shadow:
+    0 20px 60px rgb(15 23 42 / 20%);
+}
+
+.team-room-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.team-room-panel__header span {
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.team-room-panel__header h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+
+.team-room-panel__close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  color: var(--color-text-muted);
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.team-room-panel__setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.team-room-panel__setup label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.team-room-panel__setup label > span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.team-room-panel__setup input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  color: var(--color-text);
+  background: var(--color-background);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.team-room-panel__primary,
+.team-room-panel__secondary {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.team-room-panel__primary {
+  border: 1px solid var(--color-primary);
+  color: #ffffff;
+  background: var(--color-primary);
+}
+
+.team-room-panel__secondary {
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+}
+
+.team-room-panel__primary:disabled,
+.team-room-panel__secondary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.team-room-panel__divider {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.team-room-panel__room-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.team-room-panel__room-info > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.team-room-panel__room-info span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.team-room-panel__room-info strong {
+  font-size: 19px;
+  letter-spacing: 0.08em;
+}
+
+.team-room-panel__room-info button {
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  background: var(--color-surface-raised);
+  cursor: pointer;
+}
+
+.team-room-panel__task {
+  margin: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.team-room-panel__feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.team-room-panel__item {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-raised);
+}
+
+.team-room-panel__item img {
+  width: 88px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 7px;
+  background: var(--color-background);
+}
+
+.team-room-panel__item > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.team-room-panel__sender {
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.team-room-panel__item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-room-panel__item small {
+  color: var(--color-text-muted);
+}
+
+.team-room-panel__item p {
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.team-room-panel__empty {
+  margin: 10px 4px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.team-room-panel__error {
+  margin: 0 16px 16px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: #b42318;
+  background: #fff1f0;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+@media (max-width: 700px) {
+  .team-room-panel {
+    top: 12px;
+    right: 12px;
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+}
