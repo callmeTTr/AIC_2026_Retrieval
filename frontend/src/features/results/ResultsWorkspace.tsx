@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { CandidateTray } from "../candidates/CandidateTray";
 import { useCandidateSelection } from "../candidates/useCandidateSelection";
@@ -8,6 +12,9 @@ import { RefinementModal } from "../refinement/RefinementModal";
 import type { RefinementResponse } from "../refinement/refinement.types";
 import { SubmissionModal } from "../submission/SubmissionModal";
 import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
+import {
+  resolveBackendUrl,
+} from "../../services/apiClient";
 import {
   shareTeamCandidate,
 } from "../team-workspace/team-workspace.api";
@@ -54,6 +61,22 @@ function getCandidateTimestampSeconds(
 
   return result.timestamp_seconds;
 }
+type ResultsViewMode =
+  | "normal"
+  | "grouped";
+
+interface GroupedVideoItem {
+  result: SearchResult;
+  originalIndex: number;
+}
+
+
+interface GroupedVideoResult {
+  videoId: string;
+  bestRank: number;
+  representative: GroupedVideoItem;
+  items: GroupedVideoItem[];
+}
 type TeamShareState =
   | "idle"
   | "sending"
@@ -85,6 +108,18 @@ export function ResultsWorkspace({
   errorMessage,
   onRefinementComplete,
 }: ResultsWorkspaceProps) {
+  const [
+    viewMode,
+    setViewMode,
+  ] = useState<ResultsViewMode>(
+    "normal",
+  );
+  const [
+    openedVideoGroup,
+    setOpenedVideoGroup,
+  ] = useState<GroupedVideoResult | null>(
+    null,
+  );
   const [
     selectedResultIndex,
     setSelectedResultIndex,
@@ -129,7 +164,101 @@ export function ResultsWorkspace({
 
   const canRefineSearch =
     response?.query_mode !== "ocr";
+  const groupedResults =
+    useMemo<GroupedVideoResult[]>(
+      () => {
+        if (!response) {
+          return [];
+        }
 
+        const groups =
+          new Map<
+            string,
+            GroupedVideoResult
+          >();
+
+        response.results.forEach(
+          (result, index) => {
+            const item: GroupedVideoItem = {
+              result,
+              originalIndex: index,
+            };
+
+            const existing =
+              groups.get(
+                result.video_id,
+              );
+
+            if (existing) {
+              existing.items.push(
+                item,
+              );
+
+              if (
+                result.rank <
+                existing.bestRank
+              ) {
+                existing.bestRank =
+                  result.rank;
+
+                existing.representative =
+                  item;
+              }
+
+              return;
+            }
+
+            groups.set(
+              result.video_id,
+              {
+                videoId:
+                  result.video_id,
+
+                bestRank:
+                  result.rank,
+
+                representative:
+                  item,
+
+                items: [
+                  item,
+                ],
+              },
+            );
+          },
+        );
+
+        return Array.from(
+          groups.values(),
+        )
+          .map((group) => ({
+            ...group,
+
+            items: [
+              ...group.items,
+            ].sort((a, b) => {
+              const rankDiff =
+                a.result.rank -
+                b.result.rank;
+
+              if (rankDiff !== 0) {
+                return rankDiff;
+              }
+
+              return (
+                a.originalIndex -
+                b.originalIndex
+              );
+            }),
+          }))
+          .sort(
+            (a, b) =>
+              a.bestRank -
+              b.bestRank,
+          );
+      },
+      [response],
+    );
   const {
     candidates,
     isCandidateSelected,
@@ -137,13 +266,31 @@ export function ResultsWorkspace({
     removeCandidate,
     clearCandidates,
   } = useCandidateSelection();
+  function getTeamTaskName(
+    candidate: CandidateItem,
+  ): string {
+    const dresTaskName =
+      currentDresTaskName.trim();
+
+    if (dresTaskName) {
+      return dresTaskName;
+    }
+
+    return String(
+      candidate.task,
+    );
+  }
+
+
   function getTeamShareStateKey(
     roomCode: string,
     candidate: CandidateItem,
   ): string {
     return [
       roomCode.trim().toUpperCase(),
-      currentDresTaskName,
+      getTeamTaskName(
+        candidate,
+      ),
       candidate.key,
     ].join(":");
   }
@@ -154,10 +301,7 @@ export function ResultsWorkspace({
     const roomCode =
       getTeamRoomCode().trim();
 
-    if (
-      !roomCode ||
-      !currentDresTaskName
-    ) {
+    if (!roomCode) {
       return "idle";
     }
 
@@ -184,14 +328,10 @@ export function ResultsWorkspace({
       );
       return;
     }
-
-    if (!currentDresTaskName) {
-      window.alert(
-        "Connect to an active DRES task first.",
+    const teamTaskName =
+      getTeamTaskName(
+        candidate,
       );
-      return;
-    }
-
     const stateKey =
       getTeamShareStateKey(
         roomCode,
@@ -219,7 +359,7 @@ export function ResultsWorkspace({
         roomCode,
         {
           task_name:
-            currentDresTaskName,
+            teamTaskName,
 
           candidate_key:
             candidate.key,
@@ -291,11 +431,40 @@ export function ResultsWorkspace({
     setVideoResult(null);
     setRefinementResult(null);
     setSubmissionTarget(null);
+    setOpenedVideoGroup(null);
   }, [
     response?.search_id,
     refinementIteration,
   ]);
+  useEffect(() => {
+    if (!openedVideoGroup) {
+      return;
+    }
 
+    function handleKeyDown(
+      event: KeyboardEvent,
+    ) {
+      if (
+        event.key === "Escape"
+      ) {
+        setOpenedVideoGroup(
+          null,
+        );
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
+    };
+  }, [openedVideoGroup]);
   return (
     <main className="results-workspace">
       <div className="results-workspace__header">
@@ -436,10 +605,57 @@ export function ResultsWorkspace({
             </p>
           </section>
         )}
-
       {!isLoading &&
         !errorMessage &&
         hasResults && (
+          <div className="results-workspace__view-toolbar">
+            <span>
+              View mode
+            </span>
+
+            <div
+              className="results-workspace__view-toggle"
+              role="group"
+              aria-label="Results view mode"
+            >
+              <button
+                type="button"
+                className={
+                  viewMode === "normal"
+                    ? "results-workspace__view-button results-workspace__view-button--active"
+                    : "results-workspace__view-button"
+                }
+                onClick={() =>
+                  setViewMode(
+                    "normal",
+                  )
+                }
+              >
+                Normal
+              </button>
+
+              <button
+                type="button"
+                className={
+                  viewMode === "grouped"
+                    ? "results-workspace__view-button results-workspace__view-button--active"
+                    : "results-workspace__view-button"
+                }
+                onClick={() =>
+                  setViewMode(
+                    "grouped",
+                  )
+                }
+              >
+                Grouped
+              </button>
+            </div>
+          </div>
+        )}
+      {!isLoading &&
+        !errorMessage &&
+        hasResults &&
+        viewMode === "normal" && (
           <section className="results-workspace__grid">
             {response!.results.map(
               (result, index) => (
@@ -452,34 +668,47 @@ export function ResultsWorkspace({
                     )
                   }
                   onBrowseNeighbors={() =>
-                    setNeighborResult(result)
+                    setNeighborResult(
+                      result,
+                    )
                   }
                   onPlay={() =>
-                    setVideoResult(result)
+                    setVideoResult(
+                      result,
+                    )
                   }
                   onSubmit={() =>
                     setSubmissionTarget({
-                      task: response!.task,
+                      task:
+                        response!.task,
                       searchId:
-                        response!.search_id,
+                        response!
+                          .search_id,
                       result,
                     })
                   }
                   onRefine={() => {
-                    if (canRefineSearch) {
-                      setRefinementResult(result);
+                    if (
+                      canRefineSearch
+                    ) {
+                      setRefinementResult(
+                        result,
+                      );
                     }
                   }}
                   canRefineSearch={
                     canRefineSearch
                   }
-                  isCandidateSelected={isCandidateSelected(
-                    result,
-                  )}
+                  isCandidateSelected={
+                    isCandidateSelected(
+                      result,
+                    )
+                  }
                   onToggleCandidate={() =>
                     toggleCandidate(
                       response!.task,
-                      response!.search_id,
+                      response!
+                        .search_id,
                       result,
                     )
                   }
@@ -488,6 +717,304 @@ export function ResultsWorkspace({
             )}
           </section>
         )}
+
+      {!isLoading &&
+        !errorMessage &&
+        hasResults &&
+        viewMode === "grouped" && (
+          <section className="results-workspace__group-overview">
+            {groupedResults.map(
+              (group) => {
+                const representative =
+                  group.representative
+                    .result;
+
+                const thumbnailUrl =
+                  resolveBackendUrl(
+                    representative
+                      .thumbnail_url,
+                  );
+
+                const frameUrl =
+                  resolveBackendUrl(
+                    representative
+                      .frame_url,
+                  );
+
+                return (
+                  <button
+                    key={
+                      group.videoId
+                    }
+                    type="button"
+                    className="results-workspace__group-card"
+                    onClick={() =>
+                      setOpenedVideoGroup(
+                        group,
+                      )
+                    }
+                  >
+                    <div className="results-workspace__group-card-image">
+                      {thumbnailUrl ||
+                      frameUrl ? (
+                        <img
+                          src={
+                            thumbnailUrl ??
+                            frameUrl ??
+                            ""
+                          }
+                          alt={
+                            `Best matched frame from ${group.videoId}`
+                          }
+                          loading="lazy"
+                          decoding="async"
+                          onError={(
+                            event,
+                          ) => {
+                            const image =
+                              event
+                                .currentTarget;
+
+                            if (
+                              frameUrl &&
+                              image.src !==
+                                frameUrl
+                            ) {
+                              image.src =
+                                frameUrl;
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="results-workspace__group-card-placeholder">
+                          No preview
+                        </div>
+                      )}
+
+                      <span className="results-workspace__group-card-rank">
+                        Best #
+                        {
+                          group.bestRank
+                        }
+                      </span>
+
+                      <span className="results-workspace__group-card-count">
+                        {
+                          group.items
+                            .length
+                        }{" "}
+                        {group.items
+                          .length === 1
+                          ? "match"
+                          : "matches"}
+                      </span>
+                    </div>
+
+                    <div className="results-workspace__group-card-body">
+                      <div className="results-workspace__group-card-title">
+                        <strong>
+                          {
+                            group.videoId
+                          }
+                        </strong>
+
+                        <span>
+                          Score{" "}
+                          {representative.score.toFixed(
+                            3,
+                          )}
+                        </span>
+                      </div>
+
+                      <dl className="results-workspace__group-card-metadata">
+                        <div>
+                          <dt>
+                            Best frame
+                          </dt>
+
+                          <dd>
+                            {
+                              representative
+                                .frame_index
+                            }
+                          </dd>
+                        </div>
+
+                        <div>
+                          <dt>
+                            Matches
+                          </dt>
+
+                          <dd>
+                            {
+                              group.items
+                                .length
+                            }
+                          </dd>
+                        </div>
+
+                        <div>
+                          <dt>
+                            Time
+                          </dt>
+
+                          <dd>
+                            {getCandidateTimestampSeconds(
+                              representative,
+                            ).toFixed(
+                              2,
+                            )}
+                            s
+                          </dd>
+                        </div>
+                      </dl>
+
+                      <div className="results-workspace__group-card-open">
+                        Open matched frames
+                      </div>
+                    </div>
+                  </button>
+                );
+              },
+            )}
+          </section>
+        )}
+
+      {openedVideoGroup && (
+        <div
+          className="results-workspace__group-modal"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setOpenedVideoGroup(
+                null,
+              );
+            }
+          }}
+        >
+          <section
+            className="results-workspace__group-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              `Matched frames from ${openedVideoGroup.videoId}`
+            }
+          >
+            <header className="results-workspace__group-dialog-header">
+              <div>
+                <span>
+                  Grouped video
+                </span>
+
+                <h2>
+                  {
+                    openedVideoGroup
+                      .videoId
+                  }
+                </h2>
+
+                <p>
+                  {
+                    openedVideoGroup
+                      .items.length
+                  }{" "}
+                  matched{" "}
+                  {openedVideoGroup
+                    .items.length === 1
+                    ? "frame"
+                    : "frames"}
+                  {" · "}
+                  Best rank #
+                  {
+                    openedVideoGroup
+                      .bestRank
+                  }
+                </p>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close grouped video"
+                onClick={() =>
+                  setOpenedVideoGroup(
+                    null,
+                  )
+                }
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="results-workspace__group-dialog-grid">
+              {openedVideoGroup.items.map(
+                ({
+                  result,
+                  originalIndex,
+                }) => (
+                  <ResultCard
+                    key={`${result.video_id}-${result.frame_index}`}
+                    result={result}
+                    onOpen={() =>
+                      setSelectedResultIndex(
+                        originalIndex,
+                      )
+                    }
+                    onBrowseNeighbors={() =>
+                      setNeighborResult(
+                        result,
+                      )
+                    }
+                    onPlay={() =>
+                      setVideoResult(
+                        result,
+                      )
+                    }
+                    onSubmit={() =>
+                      setSubmissionTarget({
+                        task:
+                          response!.task,
+
+                        searchId:
+                          response!
+                            .search_id,
+
+                        result,
+                      })
+                    }
+                    onRefine={() => {
+                      if (
+                        canRefineSearch
+                      ) {
+                        setRefinementResult(
+                          result,
+                        );
+                      }
+                    }}
+                    canRefineSearch={
+                      canRefineSearch
+                    }
+                    isCandidateSelected={
+                      isCandidateSelected(
+                        result,
+                      )
+                    }
+                    onToggleCandidate={() =>
+                      toggleCandidate(
+                        response!.task,
+                        response!
+                          .search_id,
+                        result,
+                      )
+                    }
+                  />
+                ),
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
       {response &&
         selectedResultIndex !== null && (
