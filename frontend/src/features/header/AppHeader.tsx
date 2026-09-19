@@ -90,7 +90,7 @@ export function AppHeader({
         </span>
 
         <strong className="app-header__team-name">
-          TEAM NAME
+          CHILLGUY US
         </strong>
       </div>
 
