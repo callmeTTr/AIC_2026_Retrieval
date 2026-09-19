@@ -200,7 +200,7 @@ class QaSubmitRequest(BaseModel):
 class TrakeEvent(BaseModel):
     media_item_name: str
     timestamp_seconds: float
-    media_item_collection_name: str = "aic-test2"
+    media_item_collection_name: str = "aic-full"
     segment_duration_seconds: float = 0.5
 
 
@@ -209,7 +209,7 @@ class TrakeSubmitRequest(BaseModel):
 class SubmitRequest(BaseModel):
     media_item_name: str
     timestamp_seconds: float
-    media_item_collection_name: str = "aic-test2"
+    media_item_collection_name: str = "aic-full"
     segment_duration_seconds: float = 0.5
 
 
