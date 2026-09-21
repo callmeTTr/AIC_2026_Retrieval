@@ -70,21 +70,19 @@ export function QuerySidebar({
   onSearch,
 }: QuerySidebarProps) {
   const [topKPerModality, setTopKPerModality] =
-    useState(300);
+    useState(100);
 
   const [displayResultCount, setDisplayResultCount] =
     useState(20);
 
   const [useQueryRewrite, setUseQueryRewrite] =
-    useState(true);
+    useState(false);
 
   const [
     selectedVisualModels,
     setSelectedVisualModels,
   ] = useState<VisualSearchModel[]>([
-    "bge",
     "metaclip",
-    "beit3",
     "perception",
   ]);
 
