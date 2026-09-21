@@ -16,7 +16,9 @@ import {
   resolveBackendUrl,
 } from "../../services/apiClient";
 import {
+  getTeamRoom,
   shareTeamCandidate,
+  type TeamWorkspaceItem,
 } from "../team-workspace/team-workspace.api";
 
 import {
@@ -152,6 +154,12 @@ export function ResultsWorkspace({
   ] = useState<
     Record<string, TeamShareState>
   >({});
+  const [
+    teamRoomItems,
+    setTeamRoomItems,
+  ] = useState<TeamWorkspaceItem[]>(
+    [],
+  );
   const hasResults =
     Boolean(response) &&
     response!.results.length > 0;
@@ -266,6 +274,75 @@ export function ResultsWorkspace({
     removeCandidate,
     clearCandidates,
   } = useCandidateSelection();
+  useEffect(() => {
+    if (candidates.length === 0) {
+      setTeamRoomItems([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function refreshTeamRoomItems() {
+      const roomCode =
+        getTeamRoomCode().trim();
+
+      if (!roomCode) {
+        if (!cancelled) {
+          setTeamRoomItems([]);
+        }
+
+        return;
+      }
+
+      try {
+        const room =
+          await getTeamRoom(
+            roomCode,
+          );
+
+        if (!cancelled) {
+          setTeamRoomItems(
+            room.items,
+          );
+        }
+      } catch {
+        // Keep the last successful room snapshot
+        // during temporary network failures.
+      }
+    }
+
+    function handleTeamRoomChanged() {
+      void refreshTeamRoomItems();
+    }
+
+    void refreshTeamRoomItems();
+
+    window.addEventListener(
+      "aic-team-room-changed",
+      handleTeamRoomChanged,
+    );
+
+    const intervalId =
+      window.setInterval(
+        () => {
+          void refreshTeamRoomItems();
+        },
+        2000,
+      );
+
+    return () => {
+      cancelled = true;
+
+      window.removeEventListener(
+        "aic-team-room-changed",
+        handleTeamRoomChanged,
+      );
+
+      window.clearInterval(
+        intervalId,
+      );
+    };
+  }, [candidates.length]);
   function getTeamTaskName(
     candidate: CandidateItem,
   ): string {
@@ -311,10 +388,30 @@ export function ResultsWorkspace({
         candidate,
       );
 
-    return (
-      teamShareStateByKey[stateKey] ??
-      "idle"
-    );
+    if (
+      teamShareStateByKey[stateKey] ===
+      "sending"
+    ) {
+      return "sending";
+    }
+
+    const teamTaskName =
+      getTeamTaskName(
+        candidate,
+      );
+
+    const isShared =
+      teamRoomItems.some(
+        (item) =>
+          item.task_name ===
+            teamTaskName &&
+          item.candidate_key ===
+            candidate.key,
+      );
+
+    return isShared
+      ? "shared"
+      : "idle";
   }
   async function handleSendCandidateToTeam(
     candidate: CandidateItem,
@@ -355,9 +452,10 @@ export function ResultsWorkspace({
     );
 
     try {
-      await shareTeamCandidate(
-        roomCode,
-        {
+      const shareResponse =
+        await shareTeamCandidate(
+          roomCode,
+          {
           task_name:
             teamTaskName,
 
@@ -387,11 +485,26 @@ export function ResultsWorkspace({
           note: "",
         },
       );
+      setTeamRoomItems(
+        (currentItems) => [
+          ...currentItems.filter(
+            (item) =>
+              item.id !==
+              shareResponse.item.id,
+          ),
+          shareResponse.item,
+        ],
+      );
 
+      window.dispatchEvent(
+        new Event(
+          "aic-team-room-changed",
+        ),
+      );
       setTeamShareStateByKey(
         (current) => ({
           ...current,
-          [stateKey]: "shared",
+          [stateKey]: "idle",
         }),
       );
     } catch (error) {
@@ -408,8 +521,14 @@ export function ResultsWorkspace({
         setTeamShareStateByKey(
           (current) => ({
             ...current,
-            [stateKey]: "shared",
+            [stateKey]: "idle",
           }),
+        );
+
+        window.dispatchEvent(
+          new Event(
+            "aic-team-room-changed",
+          ),
         );
 
         return;

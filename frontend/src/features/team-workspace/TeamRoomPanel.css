@@ -3,9 +3,9 @@
   top: 84px;
   right: 20px;
   z-index: 1000;
-  width: min(390px, calc(100vw - 32px));
+  width: min(560px, calc(100vw - 32px));
   max-height: calc(100dvh - 104px);
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: 16px;
   color: var(--color-text);
@@ -161,16 +161,21 @@
 
 .team-room-panel__feed {
   display: flex;
+  min-height: 240px;
+  max-height: calc(100dvh - 290px);
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 12px;
+  padding: 14px;
+  overflow-y: auto;
 }
 
 .team-room-panel__item {
+  position: relative;
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 10px;
-  padding: 9px;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px;
+  padding-right: 44px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface-raised);
@@ -178,8 +183,6 @@
   transition:
     border-color 150ms ease,
     background-color 150ms ease;
-  position: relative;
-  padding-right: 42px;
 }
 .team-room-panel__item:hover {
   border-color: var(--color-primary);
@@ -217,8 +220,8 @@
   cursor: wait;
 }
 .team-room-panel__item img {
-  width: 88px;
-  height: 58px;
+  width: 112px;
+  height: 72px;
   object-fit: cover;
   border-radius: 7px;
   background: var(--color-background);

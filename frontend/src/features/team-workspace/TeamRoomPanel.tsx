@@ -160,6 +160,15 @@ export function TeamRoomPanel({
 
     void refreshRoom();
 
+    function handleTeamRoomChanged() {
+      void refreshRoom();
+    }
+
+    window.addEventListener(
+      "aic-team-room-changed",
+      handleTeamRoomChanged,
+    );
+
     const intervalId =
       window.setInterval(
         () => {
@@ -170,6 +179,12 @@ export function TeamRoomPanel({
 
     return () => {
       cancelled = true;
+
+      window.removeEventListener(
+        "aic-team-room-changed",
+        handleTeamRoomChanged,
+      );
+
       window.clearInterval(
         intervalId,
       );
@@ -355,12 +370,11 @@ export function TeamRoomPanel({
         };
       });
 
-      if (
-        previewItem?.id ===
-        item.id
-      ) {
-        setPreviewItem(null);
-      }
+      window.dispatchEvent(
+        new Event(
+          "aic-team-room-changed",
+        ),
+      );
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -378,6 +392,12 @@ export function TeamRoomPanel({
     setJoinCode("");
     setRoom(null);
     setErrorMessage("");
+
+    window.dispatchEvent(
+      new Event(
+        "aic-team-room-changed",
+      ),
+    );
   }
 
 
