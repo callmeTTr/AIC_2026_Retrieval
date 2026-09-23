@@ -12,6 +12,7 @@ import {
 
 import type {
   QueryBuilderValue,
+  SearchMode,
 } from "../features/query-builder/query.types";
 
 import {
@@ -36,6 +37,11 @@ import type {
   DresSubmissionModeSetting,
 } from "../features/dres/dres.api";
 import "./AppShell.css";
+
+interface SearchMutationInput {
+  request: SearchRequest;
+  searchMode: SearchMode;
+}
 
 export function AppShell() {
   const [selectedTask, setSelectedTask] =
@@ -67,15 +73,135 @@ export function AppShell() {
   ] = useState(0);
 
   const searchMutation = useMutation({
-    mutationFn: searchVideos,
+    mutationFn: async ({
+      request,
+      searchMode,
+    }: SearchMutationInput) => {
+      if (
+        searchMode === "standard"
+      ) {
+        return searchVideos(
+          request,
+        );
+      }
+
+      const startedAt =
+        performance.now();
+
+      const actionResponses:
+        SearchResponse[] = [];
+
+      for (
+        const scene
+        of request.scenes
+      ) {
+        const actionRequest:
+          SearchRequest = {
+          ...request,
+
+          scenes: [
+            scene,
+          ],
+        };
+
+        try {
+          const response =
+            await searchVideos(
+              actionRequest,
+            );
+
+          actionResponses.push(
+            response,
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unknown search error.";
+
+          throw new Error(
+            `TRAKE Action ${scene.scene_id} failed: ${message}`,
+          );
+        }
+      }
+
+      const results =
+        actionResponses.flatMap(
+          (
+            actionResponse,
+            actionIndex,
+          ) => {
+            const scene =
+              request.scenes[
+                actionIndex
+              ];
+
+            return actionResponse.results.map(
+              (result) => ({
+                ...result,
+
+                matched_scene:
+                  scene.scene_id,
+              }),
+            );
+          },
+        );
+
+      const warnings =
+        actionResponses.flatMap(
+          (
+            actionResponse,
+            actionIndex,
+          ) =>
+            actionResponse.warnings.map(
+              (warning) => ({
+                ...warning,
+
+                module:
+                  `Action ${request.scenes[actionIndex].scene_id} · ${warning.module}`,
+              }),
+            ),
+        );
+
+      return {
+        search_id:
+          `trake-${Date.now()}`,
+
+        task:
+          request.task,
+
+        query_mode:
+          "trake",
+
+        processing_time_ms:
+          Math.round(
+            performance.now() -
+              startedAt,
+          ),
+
+        total_results:
+          results.length,
+
+        warnings,
+        results,
+      } satisfies SearchResponse;
+    },
 
     onSuccess: (
       response,
-      request,
+      variables,
     ) => {
-      setOriginalRequest(request);
-      setActiveResponse(response);
-      setRefinementIteration(0);
+      setOriginalRequest(
+        variables.request,
+      );
+
+      setActiveResponse(
+        response,
+      );
+
+      setRefinementIteration(
+        0,
+      );
     },
   });
 
@@ -87,7 +213,11 @@ export function AppShell() {
       value,
     );
 
-    searchMutation.mutate(request);
+    searchMutation.mutate({
+      request,
+      searchMode:
+        value.searchMode,
+    });
   }
 
   function handleRefinementComplete(

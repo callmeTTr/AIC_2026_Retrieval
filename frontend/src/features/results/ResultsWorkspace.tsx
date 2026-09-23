@@ -65,7 +65,8 @@ function getCandidateTimestampSeconds(
 }
 type ResultsViewMode =
   | "normal"
-  | "grouped";
+  | "grouped"
+  | "trake";
 
 interface GroupedVideoItem {
   result: SearchResult;
@@ -79,10 +80,109 @@ interface GroupedVideoResult {
   representative: GroupedVideoItem;
   items: GroupedVideoItem[];
 }
+interface TrakeActionResult {
+  sceneId: number;
+  bestRank: number | null;
+  items: GroupedVideoItem[];
+}
+
+interface TrakeVideoResult {
+  videoId: string;
+  coverage: number;
+  totalActions: number;
+  bestRank: number;
+  rankSum: number;
+  representative: GroupedVideoItem;
+  actions: TrakeActionResult[];
+
+  isOrdered: boolean;
+  orderedChain: GroupedVideoItem[] | null;
+  sequenceStartSeconds: number | null;
+  sequenceEndSeconds: number | null;
+  sequenceSpanSeconds: number | null;
+}
 type TeamShareState =
   | "idle"
   | "sending"
   | "shared";
+function createTrakePlaybackResult(
+  item: GroupedVideoItem,
+): SearchResult {
+  return {
+    ...item.result,
+
+    timestamp_seconds:
+      getCandidateTimestampSeconds(
+        item.result,
+      ),
+  };
+}
+function findOrderedTrakeChain(
+  actions: TrakeActionResult[],
+): GroupedVideoItem[] | null {
+  if (
+    actions.length === 0 ||
+    actions.some(
+      (action) =>
+        action.items.length === 0,
+    )
+  ) {
+    return null;
+  }
+
+  const chain:
+    GroupedVideoItem[] = [];
+
+  let previousTimestamp =
+    Number.NEGATIVE_INFINITY;
+
+  for (const action of actions) {
+    const candidatesByTime = [
+      ...action.items,
+    ].sort(
+      (a, b) => {
+        const timeDiff =
+          getCandidateTimestampSeconds(
+            a.result,
+          ) -
+          getCandidateTimestampSeconds(
+            b.result,
+          );
+
+        if (timeDiff !== 0) {
+          return timeDiff;
+        }
+
+        return (
+          a.result.rank -
+          b.result.rank
+        );
+      },
+    );
+
+    const nextItem =
+      candidatesByTime.find(
+        (item) =>
+          getCandidateTimestampSeconds(
+            item.result,
+          ) >
+          previousTimestamp,
+      );
+
+    if (!nextItem) {
+      return null;
+    }
+
+    chain.push(nextItem);
+
+    previousTimestamp =
+      getCandidateTimestampSeconds(
+        nextItem.result,
+      );
+  }
+
+  return chain;
+}
 interface SubmissionTarget {
   task: TaskId;
   searchId: string;
@@ -120,6 +220,12 @@ export function ResultsWorkspace({
     openedVideoGroup,
     setOpenedVideoGroup,
   ] = useState<GroupedVideoResult | null>(
+    null,
+  );
+  const [
+    openedTrakeVideo,
+    setOpenedTrakeVideo,
+  ] = useState<TrakeVideoResult | null>(
     null,
   );
   const [
@@ -171,7 +277,8 @@ export function ResultsWorkspace({
     warnings.length > 0;
 
   const canRefineSearch =
-    response?.query_mode !== "ocr";
+    response?.query_mode !== "ocr" &&
+    response?.query_mode !== "trake";
   const groupedResults =
     useMemo<GroupedVideoResult[]>(
       () => {
@@ -266,6 +373,320 @@ export function ResultsWorkspace({
           );
       },
       [response],
+    );
+  const trakeActionIds =
+    useMemo<number[]>(
+      () => {
+        if (
+          originalRequest &&
+          originalRequest.scenes.length > 0
+        ) {
+          return originalRequest.scenes
+            .map(
+              (scene) =>
+                scene.scene_id,
+            )
+            .sort(
+              (a, b) =>
+                a - b,
+            );
+        }
+
+        if (!response) {
+          return [];
+        }
+
+        return Array.from(
+          new Set(
+            response.results.map(
+              (result) =>
+                result.matched_scene,
+            ),
+          ),
+        ).sort(
+          (a, b) =>
+            a - b,
+        );
+      },
+      [
+        originalRequest,
+        response,
+      ],
+    );
+
+  const trakeResults =
+    useMemo<TrakeVideoResult[]>(
+      () => {
+        if (
+          !response ||
+          trakeActionIds.length === 0
+        ) {
+          return [];
+        }
+
+        const videos =
+          new Map<
+            string,
+            Map<
+              number,
+              GroupedVideoItem[]
+            >
+          >();
+
+        response.results.forEach(
+          (result, index) => {
+            const sceneId =
+              result.matched_scene;
+
+            if (
+              !trakeActionIds.includes(
+                sceneId,
+              )
+            ) {
+              return;
+            }
+
+            let videoActions =
+              videos.get(
+                result.video_id,
+              );
+
+            if (!videoActions) {
+              videoActions =
+                new Map();
+
+              videos.set(
+                result.video_id,
+                videoActions,
+              );
+            }
+
+            const actionItems =
+              videoActions.get(
+                sceneId,
+              ) ?? [];
+
+            actionItems.push({
+              result,
+              originalIndex:
+                index,
+            });
+
+            videoActions.set(
+              sceneId,
+              actionItems,
+            );
+          },
+        );
+
+        return Array.from(
+          videos.entries(),
+        )
+          .map(
+            ([
+              videoId,
+              videoActions,
+            ]) => {
+              const actions =
+                trakeActionIds.map(
+                  (
+                    sceneId,
+                  ): TrakeActionResult => {
+                    const items = [
+                      ...(
+                        videoActions.get(
+                          sceneId,
+                        ) ?? []
+                      ),
+                    ].sort(
+                      (a, b) => {
+                        const rankDiff =
+                          a.result.rank -
+                          b.result.rank;
+
+                        if (
+                          rankDiff !== 0
+                        ) {
+                          return rankDiff;
+                        }
+
+                        return (
+                          a.originalIndex -
+                          b.originalIndex
+                        );
+                      },
+                    );
+
+                    return {
+                      sceneId,
+
+                      bestRank:
+                        items.length > 0
+                          ? items[0]
+                              .result
+                              .rank
+                          : null,
+
+                      items,
+                    };
+                  },
+                );
+
+              const matchedActions =
+                actions.filter(
+                  (action) =>
+                    action.items
+                      .length > 0,
+                );
+
+              const allItems =
+                matchedActions.flatMap(
+                  (action) =>
+                    action.items,
+                );
+
+              const representative =
+                allItems.reduce(
+                  (
+                    best,
+                    current,
+                  ) =>
+                    current.result
+                      .rank <
+                    best.result.rank
+                      ? current
+                      : best,
+                );
+
+              const rankSum =
+                matchedActions.reduce(
+                  (
+                    total,
+                    action,
+                  ) =>
+                    total +
+                    (
+                      action.bestRank ??
+                      0
+                    ),
+                  0,
+                );
+
+              const orderedChain =
+                findOrderedTrakeChain(
+                  actions,
+                );
+
+              const sequenceStartSeconds =
+                orderedChain
+                  ? getCandidateTimestampSeconds(
+                      orderedChain[0]
+                        .result,
+                    )
+                  : null;
+
+              const sequenceEndSeconds =
+                orderedChain
+                  ? getCandidateTimestampSeconds(
+                      orderedChain[
+                        orderedChain.length -
+                          1
+                      ].result,
+                    )
+                  : null;
+
+              const sequenceSpanSeconds =
+                sequenceStartSeconds !==
+                  null &&
+                sequenceEndSeconds !==
+                  null
+                  ? sequenceEndSeconds -
+                    sequenceStartSeconds
+                  : null;
+
+              return {
+                videoId,
+
+                coverage:
+                  matchedActions.length,
+
+                totalActions:
+                  trakeActionIds.length,
+
+                bestRank:
+                  representative
+                    .result.rank,
+
+                rankSum,
+
+                representative,
+
+                actions,
+
+                isOrdered:
+                  orderedChain !== null,
+
+                orderedChain,
+
+                sequenceStartSeconds,
+
+                sequenceEndSeconds,
+
+                sequenceSpanSeconds,
+              };
+            },
+          )
+          .sort(
+            (a, b) => {
+              const coverageDiff =
+                b.coverage -
+                a.coverage;
+
+              if (
+                coverageDiff !== 0
+              ) {
+                return coverageDiff;
+              }
+
+              if (
+                a.isOrdered !==
+                b.isOrdered
+              ) {
+                return a.isOrdered
+                  ? -1
+                  : 1;
+              }
+
+              const rankSumDiff =
+                a.rankSum -
+                b.rankSum;
+
+              if (
+                rankSumDiff !== 0
+              ) {
+                return rankSumDiff;
+              }
+
+              const bestRankDiff =
+                a.bestRank -
+                b.bestRank;
+
+              if (
+                bestRankDiff !== 0
+              ) {
+                return bestRankDiff;
+              }
+
+              return a.videoId.localeCompare(
+                b.videoId,
+              );
+            },
+          );
+      },
+      [
+        response,
+        trakeActionIds,
+      ],
     );
   const {
     candidates,
@@ -551,6 +972,14 @@ export function ResultsWorkspace({
     setRefinementResult(null);
     setSubmissionTarget(null);
     setOpenedVideoGroup(null);
+    setOpenedTrakeVideo(null);
+
+    setViewMode(
+      response?.query_mode ===
+        "trake"
+        ? "trake"
+        : "normal",
+    );
   }, [
     response?.search_id,
     refinementIteration,
@@ -584,6 +1013,35 @@ export function ResultsWorkspace({
       );
     };
   }, [openedVideoGroup]);
+  useEffect(() => {
+    if (!openedTrakeVideo) {
+      return;
+    }
+
+    function handleKeyDown(
+      event: KeyboardEvent,
+    ) {
+      if (
+        event.key === "Escape"
+      ) {
+        setOpenedTrakeVideo(
+          null,
+        );
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
+    };
+  }, [openedTrakeVideo]);
   return (
     <main className="results-workspace">
       <div className="results-workspace__header">
@@ -768,6 +1226,24 @@ export function ResultsWorkspace({
               >
                 Grouped
               </button>
+              {response?.query_mode ===
+                "trake" && (
+                <button
+                  type="button"
+                  className={
+                    viewMode === "trake"
+                      ? "results-workspace__view-button results-workspace__view-button--active"
+                      : "results-workspace__view-button"
+                  }
+                  onClick={() =>
+                    setViewMode(
+                      "trake",
+                    )
+                  }
+                >
+                  TRAKE
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -779,7 +1255,7 @@ export function ResultsWorkspace({
             {response!.results.map(
               (result, index) => (
                 <ResultCard
-                  key={`${result.video_id}-${result.frame_index}`}
+                  key={`${result.video_id}-${result.frame_index}-${result.matched_scene}-${index}`}
                   result={result}
                   onOpen={() =>
                     setSelectedResultIndex(
@@ -998,7 +1474,190 @@ export function ResultsWorkspace({
             )}
           </section>
         )}
+      {!isLoading &&
+        !errorMessage &&
+        hasResults &&
+        viewMode === "trake" && (
+          <section className="results-workspace__group-overview">
+            {trakeResults.map(
+              (group) => {
+                const representative =
+                  group.representative
+                    .result;
 
+                const thumbnailUrl =
+                  resolveBackendUrl(
+                    representative
+                      .thumbnail_url,
+                  );
+
+                const frameUrl =
+                  resolveBackendUrl(
+                    representative
+                      .frame_url,
+                  );
+
+                const isComplete =
+                  group.coverage ===
+                  group.totalActions;
+
+                return (
+                  <button
+                    key={group.videoId}
+                    type="button"
+                    className={[
+                      "results-workspace__group-card",
+                      "results-workspace__trake-card",
+                      isComplete
+                        ? "results-workspace__trake-card--complete"
+                        : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() =>
+                      setOpenedTrakeVideo(
+                        group,
+                      )
+                    }
+                  >
+                    <div className="results-workspace__group-card-image">
+                      {thumbnailUrl ||
+                      frameUrl ? (
+                        <img
+                          src={
+                            thumbnailUrl ??
+                            frameUrl ??
+                            ""
+                          }
+                          alt={
+                            `Best TRAKE match from ${group.videoId}`
+                          }
+                          loading="lazy"
+                          decoding="async"
+                          onError={(
+                            event,
+                          ) => {
+                            const image =
+                              event
+                                .currentTarget;
+
+                            if (
+                              frameUrl &&
+                              image.src !==
+                                frameUrl
+                            ) {
+                              image.src =
+                                frameUrl;
+                            }
+                          }}
+                        />
+                      ) : (
+                        <div className="results-workspace__group-card-placeholder">
+                          No preview
+                        </div>
+                      )}
+
+                      <span className="results-workspace__group-card-rank">
+                        {group.coverage}
+                        {" / "}
+                        {group.totalActions}
+                        {" actions"}
+                      </span>
+
+                      <span className="results-workspace__group-card-count">
+                        {isComplete
+                          ? group.isOrdered
+                            ? "Ordered ✓"
+                            : "Ordered ✕"
+                          : "Partial"}
+                      </span>
+                    </div>
+
+                    <div className="results-workspace__group-card-body">
+                      <div className="results-workspace__group-card-title">
+                        <strong>
+                          {group.videoId}
+                        </strong>
+
+                        <span>
+                          Best #
+                          {group.bestRank}
+                        </span>
+                      </div>
+                      {group.isOrdered &&
+                        group.sequenceStartSeconds !==
+                          null &&
+                        group.sequenceEndSeconds !==
+                          null && (
+                          <div className="results-workspace__trake-sequence">
+                            <strong>
+                              Ordered sequence
+                            </strong>
+
+                            <span>
+                              {
+                                group.sequenceStartSeconds.toFixed(
+                                  2,
+                                )
+                              }
+                              s
+                              {" → "}
+                              {
+                                group.sequenceEndSeconds.toFixed(
+                                  2,
+                                )
+                              }
+                              s
+
+                              {group.sequenceSpanSeconds !==
+                                null &&
+                                ` · span ${group.sequenceSpanSeconds.toFixed(
+                                  2,
+                                )}s`}
+                            </span>
+                          </div>
+                        )}
+                      <div className="results-workspace__trake-actions">
+                        {group.actions.map(
+                          (action) => (
+                            <span
+                              key={
+                                action.sceneId
+                              }
+                              className={[
+                                "results-workspace__trake-action-chip",
+                                action.items
+                                  .length > 0
+                                  ? "results-workspace__trake-action-chip--matched"
+                                  : "results-workspace__trake-action-chip--missing",
+                              ].join(
+                                " ",
+                              )}
+                            >
+                              A
+                              {
+                                action.sceneId
+                              }
+                              {" "}
+                              {action.bestRank !==
+                              null
+                                ? `#${action.bestRank}`
+                                : "—"}
+                            </span>
+                          ),
+                        )}
+                      </div>
+
+                      <div className="results-workspace__group-card-open">
+                        Open TRAKE matches
+                      </div>
+                    </div>
+                  </button>
+                );
+              },
+            )}
+          </section>
+        )}
       {openedVideoGroup && (
         <div
           className="results-workspace__group-modal"
@@ -1073,7 +1732,7 @@ export function ResultsWorkspace({
                   originalIndex,
                 }) => (
                   <ResultCard
-                    key={`${result.video_id}-${result.frame_index}`}
+                    key={`${result.video_id}-${result.frame_index}-${result.matched_scene}-${originalIndex}`}
                     result={result}
                     onOpen={() =>
                       setSelectedResultIndex(
@@ -1134,7 +1793,296 @@ export function ResultsWorkspace({
           </section>
         </div>
       )}
+      {openedTrakeVideo && (
+        <div
+          className="results-workspace__group-modal"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setOpenedTrakeVideo(
+                null,
+              );
+            }
+          }}
+        >
+          <section
+            className="results-workspace__group-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              `TRAKE matches from ${openedTrakeVideo.videoId}`
+            }
+          >
+            <header className="results-workspace__group-dialog-header">
+              <div>
+                <span>
+                  TRAKE Assist
+                </span>
 
+                <h2>
+                  {
+                    openedTrakeVideo
+                      .videoId
+                  }
+                </h2>
+
+                <p>
+                  {
+                    openedTrakeVideo
+                      .coverage
+                  }
+                  {" / "}
+                  {
+                    openedTrakeVideo
+                      .totalActions
+                  }
+                  {" actions matched"}
+
+                  {openedTrakeVideo
+                    .coverage ===
+                    openedTrakeVideo
+                      .totalActions &&
+                    (
+                      openedTrakeVideo
+                        .isOrdered
+                        ? " · Ordered ✓"
+                        : " · Ordered ✕"
+                    )}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close TRAKE video"
+                onClick={() =>
+                  setOpenedTrakeVideo(
+                    null,
+                  )
+                }
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="results-workspace__trake-dialog-body">
+              {openedTrakeVideo
+                .orderedChain && (
+                <section className="results-workspace__trake-sequence-panel">
+                  <header>
+                    <strong>
+                      Detected ordered chain
+                    </strong>
+
+                    {openedTrakeVideo
+                      .sequenceSpanSeconds !==
+                      null && (
+                      <span>
+                        {
+                          openedTrakeVideo.sequenceSpanSeconds.toFixed(
+                            2,
+                          )
+                        }
+                        s span
+                      </span>
+                    )}
+                  </header>
+
+                  <div className="results-workspace__trake-sequence-chain">
+                    {openedTrakeVideo
+                      .orderedChain.map(
+                        (
+                          item,
+                          index,
+                        ) => (
+                          <button
+                            key={`${item.result.video_id}-${item.result.frame_index}-${index}`}
+                            type="button"
+                            className="results-workspace__trake-sequence-step"
+                            disabled={
+                              !item.result
+                                .video_available
+                            }
+                            title={
+                              item.result
+                                .video_available
+                                ? `Play Action ${index + 1} at ${getCandidateTimestampSeconds(
+                                    item.result,
+                                  ).toFixed(
+                                    2,
+                                  )}s`
+                                : "Original video unavailable"
+                            }
+                            aria-label={
+                              item.result
+                                .video_available
+                                ? `Play Action ${index + 1} at ${getCandidateTimestampSeconds(
+                                    item.result,
+                                  ).toFixed(
+                                    2,
+                                  )} seconds`
+                                : `Original video unavailable for Action ${index + 1}`
+                            }
+                            onClick={() =>
+                              setVideoResult(
+                                createTrakePlaybackResult(
+                                  item,
+                                ),
+                              )
+                            }
+                          >
+                            <span>
+                              A
+                              {index + 1}
+                            </span>
+
+                            <strong>
+                              {
+                                getCandidateTimestampSeconds(
+                                  item.result,
+                                ).toFixed(
+                                  2,
+                                )
+                              }
+                              s
+                            </strong>
+
+                            <small>
+                              {item.result
+                                .video_available
+                                ? `Rank #${item.result.rank} · Play`
+                                : "Video unavailable"}
+                            </small>
+                          </button>
+                        ),
+                      )}
+                  </div>
+                </section>
+              )}
+              {openedTrakeVideo.actions.map(
+                (action) => (
+                  <section
+                    key={
+                      action.sceneId
+                    }
+                    className="results-workspace__trake-action-section"
+                  >
+                    <header className="results-workspace__trake-action-header">
+                      <div>
+                        <span>
+                          Action{" "}
+                          {
+                            action.sceneId
+                          }
+                        </span>
+
+                        <strong>
+                          {action.bestRank !==
+                          null
+                            ? `Best rank #${action.bestRank}`
+                            : "No match in this video"}
+                        </strong>
+                      </div>
+
+                      <small>
+                        {
+                          action.items
+                            .length
+                        }{" "}
+                        {action.items
+                          .length === 1
+                          ? "match"
+                          : "matches"}
+                      </small>
+                    </header>
+
+                    {action.items.length >
+                    0 ? (
+                      <div className="results-workspace__trake-action-grid">
+                        {action.items.map(
+                          ({
+                            result,
+                            originalIndex,
+                          }) => (
+                            <ResultCard
+                              key={`${result.video_id}-${result.frame_index}-${result.matched_scene}-${originalIndex}`}
+                              result={
+                                result
+                              }
+                              onOpen={() =>
+                                setSelectedResultIndex(
+                                  originalIndex,
+                                )
+                              }
+                              onBrowseNeighbors={() =>
+                                setNeighborResult(
+                                  result,
+                                )
+                              }
+                              onPlay={() =>
+                                setVideoResult(
+                                  result,
+                                )
+                              }
+                              onSubmit={() =>
+                                setSubmissionTarget(
+                                  {
+                                    task:
+                                      response!
+                                        .task,
+
+                                    searchId:
+                                      response!
+                                        .search_id,
+
+                                    result,
+                                  },
+                                )
+                              }
+                              onRefine={() => {
+                                // TRAKE results
+                                // intentionally
+                                // disable refine.
+                              }}
+                              canRefineSearch={
+                                false
+                              }
+                              isCandidateSelected={
+                                isCandidateSelected(
+                                  result,
+                                )
+                              }
+                              onToggleCandidate={() =>
+                                toggleCandidate(
+                                  response!
+                                    .task,
+
+                                  response!
+                                    .search_id,
+
+                                  result,
+                                )
+                              }
+                            />
+                          ),
+                        )}
+                      </div>
+                    ) : (
+                      <p className="results-workspace__trake-action-empty">
+                        No retrieved frame
+                        from this action
+                        belongs to this
+                        video.
+                      </p>
+                    )}
+                  </section>
+                ),
+              )}
+            </div>
+          </section>
+        </div>
+      )}
       {response &&
         selectedResultIndex !== null && (
           <FrameLightbox

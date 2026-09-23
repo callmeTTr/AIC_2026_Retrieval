@@ -3,7 +3,9 @@ export type VisualSearchModel =
   | "metaclip"
   | "beit3"
   | "perception";
-
+export type SearchMode =
+  | "standard"
+  | "trake";
 export interface QueryScene {
   id: string;
   visualQuery: string;
@@ -17,6 +19,7 @@ export type QueryField =
   | "asrQuery";
 
 export interface QueryBuilderValue {
+  searchMode: SearchMode;
   scenes: QueryScene[];
   topKPerModality: number;
   displayResultCount: number;

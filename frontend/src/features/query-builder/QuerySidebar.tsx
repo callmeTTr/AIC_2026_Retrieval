@@ -5,6 +5,7 @@ import type {
   QueryBuilderValue,
   QueryField,
   QueryScene,
+  SearchMode,
   VisualSearchModel,
 } from "./query.types";
 
@@ -69,6 +70,12 @@ function isSceneEmpty(scene: QueryScene): boolean {
 export function QuerySidebar({
   onSearch,
 }: QuerySidebarProps) {
+  const [
+    searchMode,
+    setSearchMode,
+  ] = useState<SearchMode>(
+    "standard",
+  );
   const [topKPerModality, setTopKPerModality] =
     useState(100);
 
@@ -213,7 +220,15 @@ export function QuerySidebar({
       );
       return;
     }
-
+    if (
+      searchMode === "trake" &&
+      scenes.length < 2
+    ) {
+      setFormError(
+        "TRAKE Assist requires at least two actions.",
+      );
+      return;
+    }
     const emptySceneIds = scenes
       .filter(isSceneEmpty)
       .map((scene) => scene.id);
@@ -230,6 +245,7 @@ export function QuerySidebar({
     setFormError("");
 
     onSearch({
+      searchMode,
       scenes,
       topKPerModality,
       displayResultCount,
@@ -254,6 +270,49 @@ export function QuerySidebar({
       </div>
 
       <section className="query-sidebar__settings">
+        <fieldset className="query-sidebar__model-selector">
+          <legend>Search Mode</legend>
+
+          <div className="query-sidebar__model-options">
+            <label className="query-sidebar__model-option">
+              <input
+                type="radio"
+                name="search-mode"
+                value="standard"
+                checked={
+                  searchMode ===
+                  "standard"
+                }
+                onChange={() =>
+                  setSearchMode(
+                    "standard",
+                  )
+                }
+              />
+
+              <span>Standard</span>
+            </label>
+
+            <label className="query-sidebar__model-option">
+              <input
+                type="radio"
+                name="search-mode"
+                value="trake"
+                checked={
+                  searchMode ===
+                  "trake"
+                }
+                onChange={() =>
+                  setSearchMode(
+                    "trake",
+                  )
+                }
+              />
+
+              <span>TRAKE Assist</span>
+            </label>
+          </div>
+        </fieldset>
         <label>
           <span>Visual Candidate K</span>
 
@@ -358,7 +417,9 @@ export function QuerySidebar({
           className="query-sidebar__add-button"
           onClick={handleAddScene}
         >
-          + Add Scene
+          {searchMode === "trake"
+            ? "+ Add Action"
+            : "+ Add Scene"}
         </button>
       </div>
 
@@ -377,7 +438,9 @@ export function QuerySidebar({
           type="submit"
           className="query-sidebar__search-button"
         >
-          Search Video Dataset
+          {searchMode === "trake"
+            ? "Search TRAKE Actions"
+            : "Search Video Dataset"}
         </button>
       </footer>
     </form>
