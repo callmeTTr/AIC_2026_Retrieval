@@ -18,37 +18,13 @@ import type {
 
 import "./ResultCard.css";
 
-function formatVideoTime(
+function formatVideoTimeMs(
   seconds: number,
 ): string {
-  const totalSeconds =
-    Math.max(
-      0,
-      Math.floor(seconds),
-    );
-
-  const hours =
-    Math.floor(totalSeconds / 3600);
-
-  const minutes =
-    Math.floor(
-      (totalSeconds % 3600) / 60,
-    );
-
-  const secs =
-    totalSeconds % 60;
-
-  return [
-    hours,
-    minutes,
-    secs,
-  ]
-    .map((value) =>
-      value
-        .toString()
-        .padStart(2, "0"),
-    )
-    .join(":");
+  return `${Math.max(
+    0,
+    Math.round(seconds * 1000),
+  )} ms`;
 }
 
 function formatFps(
@@ -100,12 +76,17 @@ export function ResultCard({
   onToggleCandidate,
 }: ResultCardProps) {
 const frameTimeSeconds =
-  result.fps &&
-  result.fps > 0
-    ? result.frame_index /
-      result.fps
-    : result.frame_timestamp_seconds ??
-      result.timestamp_seconds;
+  typeof result.frame_timestamp_seconds ===
+    "number" &&
+  Number.isFinite(
+    result.frame_timestamp_seconds,
+  )
+    ? result.frame_timestamp_seconds
+    : result.fps &&
+        result.fps > 0
+      ? result.frame_index /
+        result.fps
+      : result.timestamp_seconds;
 
 const thumbnailUrl =
   resolveBackendUrl(
@@ -119,7 +100,9 @@ const frameUrl =
 
 const videoTitle =
     result.video_available
-      ? `Open ${result.video_id} at ${result.timestamp_seconds.toFixed(3)} seconds`
+      ? `Open ${result.video_id} at ${Math.round(
+          frameTimeSeconds * 1000,
+        )} ms`
       : `Original video ${result.video_id} is unavailable`;
 
   const canRefine =
@@ -173,7 +156,9 @@ const videoTitle =
           {result.video_available ? (
             <>
               <Play size={13} />
-              {result.timestamp_seconds.toFixed(3)}s
+              {Math.round(
+                frameTimeSeconds * 1000,
+              )} ms
             </>
           ) : (
             <>
@@ -281,7 +266,7 @@ const videoTitle =
           <div>
             <dt>Video time</dt>
             <dd>
-              {formatVideoTime(
+              {formatVideoTimeMs(
                 frameTimeSeconds,
               )}
             </dd>

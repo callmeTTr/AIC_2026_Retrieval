@@ -10,7 +10,10 @@ import { FrameLightbox } from "../frame-viewer/FrameLightbox";
 import { NeighborFrameViewer } from "../neighbors/NeighborFrameViewer";
 import { RefinementModal } from "../refinement/RefinementModal";
 import type { RefinementResponse } from "../refinement/refinement.types";
+import { QaSubmissionModal } from "../submission/QaSubmissionModal";
 import { SubmissionModal } from "../submission/SubmissionModal";
+import { TrakeSubmissionModal } from "../submission/TrakeSubmissionModal";
+import { submitResult } from "../submission/submission.api";
 import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
 import {
   resolveBackendUrl,
@@ -38,6 +41,9 @@ import type {
 import { ResultCard } from "./ResultCard";
 
 import "./ResultsWorkspace.css";
+import type {
+  DresSubmissionMode,
+} from "../dres/dres.api";
 function getCandidateTimestampSeconds(
   result: SearchResult,
 ): number {
@@ -189,9 +195,20 @@ interface SubmissionTarget {
   result: SearchResult;
 }
 
+interface QaSubmissionTarget {
+  videoId: string;
+  timestampMs: number;
+}
+
+interface TrakeSubmissionTarget {
+  videoId: string;
+  frameIds: number[];
+}
+
 interface ResultsWorkspaceProps {
   response?: SearchResponse;
   currentDresTaskName: string;
+  dresSubmissionMode: DresSubmissionMode;
   originalRequest?: SearchRequest;
   refinementIteration: number;
   isLoading: boolean;
@@ -204,6 +221,7 @@ interface ResultsWorkspaceProps {
 export function ResultsWorkspace({
   response,
   currentDresTaskName,
+  dresSubmissionMode,
   originalRequest,
   refinementIteration,
   isLoading,
@@ -254,6 +272,21 @@ export function ResultsWorkspace({
   ] = useState<SubmissionTarget | null>(
     null,
   );
+
+  const [
+    qaSubmissionTarget,
+    setQaSubmissionTarget,
+  ] = useState<QaSubmissionTarget | null>(
+    null,
+  );
+
+  const [
+    trakeSubmissionTarget,
+    setTrakeSubmissionTarget,
+  ] = useState<TrakeSubmissionTarget | null>(
+    null,
+  );
+
   const [
     teamShareStateByKey,
     setTeamShareStateByKey,
@@ -965,12 +998,91 @@ export function ResultsWorkspace({
       window.alert(message);
     }
   }
+  function handleOpenSubmissionForResult(
+    task: TaskId,
+    searchId: string,
+    result: SearchResult,
+  ) {
+    if (dresSubmissionMode === "KIS") {
+      setSubmissionTarget({
+        task,
+        searchId,
+        result,
+      });
+
+      return;
+    }
+
+    if (dresSubmissionMode === "QA") {
+      setQaSubmissionTarget({
+        videoId:
+          result.video_id,
+
+        timestampMs:
+          Math.round(
+            getCandidateTimestampSeconds(
+              result,
+            ) * 1000,
+          ),
+      });
+
+      return;
+    }
+
+    if (
+      dresSubmissionMode ===
+      "TRAKE"
+    ) {
+      window.alert(
+        "TRAKE requires an ordered semantic-keyframe chain. Open TRAKE Assist and use “Use this chain for TRAKE”.",
+      );
+
+      return;
+    }
+
+    window.alert(
+      "Choose KIS, QA or TRAKE submission mode first.",
+    );
+  }
+  async function handleSubmitCurrentVideoFrame(
+    result: SearchResult,
+    timestampSeconds: number,
+    frameIndex: number | null,
+  ) {
+    if (!response) {
+      throw new Error(
+        "Search context is unavailable.",
+      );
+    }
+
+    const submission =
+      await submitResult({
+        task: response.task,
+        search_id: response.search_id,
+        video_id: result.video_id,
+        frame_index:
+          frameIndex ?? result.frame_index,
+        timestamp_seconds:
+          timestampSeconds,
+      });
+
+    if (
+      submission.status !== "accepted"
+    ) {
+      throw new Error(
+        submission.message ||
+          "DRES rejected the submission.",
+      );
+    }
+  }
   useEffect(() => {
     setSelectedResultIndex(null);
     setNeighborResult(null);
     setVideoResult(null);
     setRefinementResult(null);
     setSubmissionTarget(null);
+    setQaSubmissionTarget(null);
+    setTrakeSubmissionTarget(null);
     setOpenedVideoGroup(null);
     setOpenedTrakeVideo(null);
 
@@ -1273,14 +1385,11 @@ export function ResultsWorkspace({
                     )
                   }
                   onSubmit={() =>
-                    setSubmissionTarget({
-                      task:
-                        response!.task,
-                      searchId:
-                        response!
-                          .search_id,
+                    handleOpenSubmissionForResult(
+                      response!.task,
+                      response!.search_id,
                       result,
-                    })
+                    )
                   }
                   onRefine={() => {
                     if (
@@ -1750,16 +1859,11 @@ export function ResultsWorkspace({
                       )
                     }
                     onSubmit={() =>
-                      setSubmissionTarget({
-                        task:
-                          response!.task,
-
-                        searchId:
-                          response!
-                            .search_id,
-
+                      handleOpenSubmissionForResult(
+                        response!.task,
+                        response!.search_id,
                         result,
-                      })
+                      )
                     }
                     onRefine={() => {
                       if (
@@ -1879,12 +1983,12 @@ export function ResultsWorkspace({
                       .sequenceSpanSeconds !==
                       null && (
                       <span>
-                        {
-                          openedTrakeVideo.sequenceSpanSeconds.toFixed(
-                            2,
-                          )
-                        }
-                        s span
+                        {Math.round(
+                          openedTrakeVideo
+                            .sequenceSpanSeconds *
+                            1000,
+                        )}{" "}
+                        ms span
                       </span>
                     )}
                   </header>
@@ -1907,21 +2011,17 @@ export function ResultsWorkspace({
                             title={
                               item.result
                                 .video_available
-                                ? `Play Action ${index + 1} at ${getCandidateTimestampSeconds(
-                                    item.result,
-                                  ).toFixed(
-                                    2,
-                                  )}s`
+                                ? `Play Action ${index + 1} · Frame ${item.result.frame_index} · ${Math.round(
+                                    getCandidateTimestampSeconds(
+                                      item.result,
+                                    ) * 1000,
+                                  )} ms`
                                 : "Original video unavailable"
                             }
                             aria-label={
                               item.result
                                 .video_available
-                                ? `Play Action ${index + 1} at ${getCandidateTimestampSeconds(
-                                    item.result,
-                                  ).toFixed(
-                                    2,
-                                  )} seconds`
+                                ? `Play Action ${index + 1}, frame ${item.result.frame_index}`
                                 : `Original video unavailable for Action ${index + 1}`
                             }
                             onClick={() =>
@@ -1938,26 +2038,55 @@ export function ResultsWorkspace({
                             </span>
 
                             <strong>
+                              Frame{" "}
                               {
-                                getCandidateTimestampSeconds(
-                                  item.result,
-                                ).toFixed(
-                                  2,
-                                )
+                                item.result
+                                  .frame_index
                               }
-                              s
                             </strong>
 
                             <small>
                               {item.result
                                 .video_available
-                                ? `Rank #${item.result.rank} · Play`
+                                ? `${Math.round(
+                                    getCandidateTimestampSeconds(
+                                      item.result,
+                                    ) * 1000,
+                                  )} ms · Rank #${item.result.rank} · Play`
                                 : "Video unavailable"}
                             </small>
                           </button>
                         ),
                       )}
                   </div>
+
+                  {dresSubmissionMode ===
+                    "TRAKE" && (
+                    <button
+                      type="button"
+                      className="results-workspace__view-button"
+                      onClick={() =>
+                        setTrakeSubmissionTarget(
+                          {
+                            videoId:
+                              openedTrakeVideo
+                                .videoId,
+
+                            frameIds:
+                              openedTrakeVideo
+                                .orderedChain!
+                                .map(
+                                  (item) =>
+                                    item.result
+                                      .frame_index,
+                                ),
+                          },
+                        )
+                      }
+                    >
+                      Use this chain for TRAKE
+                    </button>
+                  )}
                 </section>
               )}
               {openedTrakeVideo.actions.map(
@@ -2026,18 +2155,10 @@ export function ResultsWorkspace({
                                 )
                               }
                               onSubmit={() =>
-                                setSubmissionTarget(
-                                  {
-                                    task:
-                                      response!
-                                        .task,
-
-                                    searchId:
-                                      response!
-                                        .search_id,
-
-                                    result,
-                                  },
+                                handleOpenSubmissionForResult(
+                                  response!.task,
+                                  response!.search_id,
+                                  result,
                                 )
                               }
                               onRefine={() => {
@@ -2111,6 +2232,29 @@ export function ResultsWorkspace({
       {videoResult && (
         <VideoPlayerModal
           result={videoResult}
+          onSubmitCurrentFrame={
+            dresSubmissionMode === "KIS"
+              ? (
+                  timestampSeconds,
+                  frameIndex,
+                ) =>
+                  handleSubmitCurrentVideoFrame(
+                    videoResult,
+                    timestampSeconds,
+                    frameIndex,
+                  )
+              : undefined
+          }
+          onUseCurrentFrameForQa={
+            dresSubmissionMode === "QA"
+              ? (timestampMs) =>
+                  setQaSubmissionTarget({
+                    videoId:
+                      videoResult.video_id,
+                    timestampMs,
+                  })
+              : undefined
+          }
           onClose={() =>
             setVideoResult(null)
           }
@@ -2134,12 +2278,11 @@ export function ResultsWorkspace({
         onSubmitCandidate={(
           candidate,
         ) =>
-          setSubmissionTarget({
-            task: candidate.task,
-            searchId:
-              candidate.searchId,
-            result: candidate.result,
-          })
+          handleOpenSubmissionForResult(
+            candidate.task,
+            candidate.searchId,
+            candidate.result,
+          )
         }
       />
 
@@ -2154,6 +2297,34 @@ export function ResultsWorkspace({
           }
           onClose={() =>
             setSubmissionTarget(null)
+          }
+        />
+      )}
+
+      {qaSubmissionTarget && (
+        <QaSubmissionModal
+          initialVideoId={
+            qaSubmissionTarget.videoId
+          }
+          initialTimestampMs={
+            qaSubmissionTarget.timestampMs
+          }
+          onClose={() =>
+            setQaSubmissionTarget(null)
+          }
+        />
+      )}
+
+      {trakeSubmissionTarget && (
+        <TrakeSubmissionModal
+          initialVideoId={
+            trakeSubmissionTarget.videoId
+          }
+          initialFrameIds={
+            trakeSubmissionTarget.frameIds
+          }
+          onClose={() =>
+            setTrakeSubmissionTarget(null)
           }
         />
       )}

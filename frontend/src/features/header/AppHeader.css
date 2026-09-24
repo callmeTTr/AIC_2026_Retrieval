@@ -68,6 +68,40 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+.app-header__submission-mode {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-surface-raised);
+}
+
+.app-header__mode-button {
+  padding: 6px 9px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.app-header__mode-button:hover {
+  color: var(--color-text);
+}
+
+.app-header__mode-button--active {
+  color: #ffffff;
+  background: var(--color-primary);
+}
+
 .app-header__dres,
 .app-header__team {
   display: flex;
@@ -113,5 +147,10 @@
   .app-header__tasks {
     justify-content: flex-start;
     overflow-x: auto;
+  }
+
+  .app-header__actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }

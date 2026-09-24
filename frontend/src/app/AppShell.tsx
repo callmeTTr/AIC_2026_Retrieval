@@ -32,9 +32,10 @@ import {
 import type {
   RefinementResponse,
 } from "../features/refinement/refinement.types";
-import type {
-  DresCurrentTask,
-  DresSubmissionModeSetting,
+import {
+  resolveDresSubmissionMode,
+  type DresCurrentTask,
+  type DresSubmissionModeSetting,
 } from "../features/dres/dres.api";
 import "./AppShell.css";
 
@@ -234,7 +235,11 @@ export function AppShell() {
     searchMutation.error instanceof Error
       ? searchMutation.error.message
       : undefined;
-
+  const dresSubmissionMode =
+    resolveDresSubmissionMode(
+      currentDresTask,
+      dresSubmissionModeSetting,
+    );
   return (
     <div className="app-shell">
       <AppHeader
@@ -259,6 +264,9 @@ export function AppShell() {
           response={activeResponse}
           currentDresTaskName={
             currentDresTask?.name ?? ""
+          }
+          dresSubmissionMode={
+            dresSubmissionMode
           }
           originalRequest={
             originalRequest ?? undefined

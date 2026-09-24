@@ -21,47 +21,59 @@ import {
 
 import "./ManualKisSubmissionModal.css";
 
-type EventMode =
-  | "frame"
-  | "timestamp";
-
-interface TrakeEventDraft {
+interface TrakeFrameDraft {
   id: number;
-  videoId: string;
-  mode: EventMode;
-  frameIndex: string;
-  fps: string;
-  timestamp: string;
+  frameId: string;
 }
 
 interface TrakeSubmissionModalProps {
+  initialVideoId?: string;
+  initialFrameIds?: number[];
   onClose: () => void;
 }
 
-function createEvent(
+function createFrame(
   id: number,
-): TrakeEventDraft {
+  frameId = "",
+): TrakeFrameDraft {
   return {
     id,
-    videoId: "",
-    mode: "frame",
-    frameIndex: "",
-    fps: "",
-    timestamp: "",
+    frameId,
   };
 }
 
 export function TrakeSubmissionModal({
+  initialVideoId = "",
+  initialFrameIds,
   onClose,
 }: TrakeSubmissionModalProps) {
-  const [events, setEvents] =
-    useState<TrakeEventDraft[]>([
-      createEvent(1),
-      createEvent(2),
-    ]);
+  const [videoId, setVideoId] =
+    useState(initialVideoId);
+
+  const [frames, setFrames] =
+    useState<TrakeFrameDraft[]>(
+      initialFrameIds &&
+      initialFrameIds.length > 0
+        ? initialFrameIds.map(
+            (frameId, index) =>
+              createFrame(
+                index + 1,
+                String(frameId),
+              ),
+          )
+        : [
+            createFrame(1),
+            createFrame(2),
+          ],
+    );
 
   const [nextId, setNextId] =
-    useState(3);
+    useState(
+      initialFrameIds &&
+      initialFrameIds.length > 0
+        ? initialFrameIds.length + 1
+        : 3,
+    );
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
@@ -73,33 +85,31 @@ export function TrakeSubmissionModal({
     useState<{
       submission: string;
       description: string;
-      submittedEvents: Array<{
-        index: number;
-        mediaItemName: string;
-        startMs: number;
-      }>;
+      videoId: string;
+      frameIds: number[];
+      submittedText: string;
     } | null>(null);
 
-  function updateEvent(
+  function updateFrame(
     id: number,
-    patch: Partial<TrakeEventDraft>,
+    frameId: string,
   ) {
-    setEvents((current) =>
-      current.map((event) =>
-        event.id === id
+    setFrames((current) =>
+      current.map((frame) =>
+        frame.id === id
           ? {
-              ...event,
-              ...patch,
+              ...frame,
+              frameId,
             }
-          : event,
+          : frame,
       ),
     );
   }
 
-  function addEvent() {
-    setEvents((current) => [
+  function addFrame() {
+    setFrames((current) => [
       ...current,
-      createEvent(nextId),
+      createFrame(nextId),
     ]);
 
     setNextId((current) =>
@@ -107,22 +117,22 @@ export function TrakeSubmissionModal({
     );
   }
 
-  function removeEvent(
+  function removeFrame(
     id: number,
   ) {
-    setEvents((current) => {
+    setFrames((current) => {
       if (current.length <= 1) {
         return current;
       }
 
       return current.filter(
-        (event) =>
-          event.id !== id,
+        (frame) =>
+          frame.id !== id,
       );
     });
   }
 
-  function moveEvent(
+  function moveFrame(
     index: number,
     direction: -1 | 1,
   ) {
@@ -131,20 +141,16 @@ export function TrakeSubmissionModal({
 
     if (
       targetIndex < 0 ||
-      targetIndex >= events.length
+      targetIndex >= frames.length
     ) {
       return;
     }
 
-    setEvents((current) => {
+    setFrames((current) => {
       const next = [...current];
 
-      const [
-        moved,
-      ] = next.splice(
-        index,
-        1,
-      );
+      const [moved] =
+        next.splice(index, 1);
 
       next.splice(
         targetIndex,
@@ -156,53 +162,24 @@ export function TrakeSubmissionModal({
     });
   }
 
-  function resolveTimestamp(
-    event: TrakeEventDraft,
-    index: number,
-  ): number {
-    if (
-      event.mode === "timestamp"
-    ) {
-      const value =
-        Number(event.timestamp);
+  function getPreviewText() {
+    const normalizedVideoId =
+      videoId
+        .trim()
+        .replace(/\.mp4$/i, "");
 
-      if (
-        !Number.isFinite(value) ||
-        value < 0
-      ) {
-        throw new Error(
-          `Event ${index + 1}: timestamp must be a valid number greater than or equal to 0.`,
-        );
-      }
+    const frameText =
+      frames
+        .map((frame) =>
+          frame.frameId.trim() ||
+          "<FRAME_ID>",
+        )
+        .join(",");
 
-      return value;
-    }
-
-    const frameValue =
-      Number(event.frameIndex);
-
-    const fpsValue =
-      Number(event.fps);
-
-    if (
-      !Number.isInteger(frameValue) ||
-      frameValue < 0
-    ) {
-      throw new Error(
-        `Event ${index + 1}: frame index must be a non-negative integer.`,
-      );
-    }
-
-    if (
-      !Number.isFinite(fpsValue) ||
-      fpsValue <= 0
-    ) {
-      throw new Error(
-        `Event ${index + 1}: FPS must be greater than 0.`,
-      );
-    }
-
-    return frameValue / fpsValue;
+    return (
+      `TR-${normalizedVideoId || "<VIDEO_ID>"}-` +
+      frameText
+    );
   }
 
   async function handleSubmit() {
@@ -211,6 +188,12 @@ export function TrakeSubmissionModal({
 
     const bridgeToken =
       getDresBridgeToken().trim();
+
+    const normalizedVideoId =
+      videoId
+        .trim()
+        .replace(/\.mp4$/i, "")
+        .toUpperCase();
 
     if (!evaluationId) {
       setErrorMessage(
@@ -226,9 +209,47 @@ export function TrakeSubmissionModal({
       return;
     }
 
-    if (events.length < 1) {
+    if (!normalizedVideoId) {
       setErrorMessage(
-        "TRAKE requires at least one event.",
+        "Video ID is required.",
+      );
+      return;
+    }
+
+    if (frames.length < 1) {
+      setErrorMessage(
+        "TRAKE requires at least one frame ID.",
+      );
+      return;
+    }
+
+    let frameIds: number[];
+
+    try {
+      frameIds = frames.map(
+        (frame, index) => {
+          const value =
+            Number(
+              frame.frameId.trim(),
+            );
+
+          if (
+            !Number.isInteger(value) ||
+            value < 0
+          ) {
+            throw new Error(
+              `Frame ${index + 1} must be a non-negative integer.`,
+            );
+          }
+
+          return value;
+        },
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Invalid TRAKE frame IDs.",
       );
       return;
     }
@@ -238,40 +259,16 @@ export function TrakeSubmissionModal({
     setResult(null);
 
     try {
-      const requestEvents =
-        events.map(
-          (event, index) => {
-            const videoId =
-              event.videoId
-                .trim()
-                .toUpperCase();
-
-            if (!videoId) {
-              throw new Error(
-                `Event ${index + 1}: Video ID is required.`,
-              );
-            }
-
-            return {
-              media_item_name:
-                videoId,
-
-              timestamp_seconds:
-                resolveTimestamp(
-                  event,
-                  index,
-                ),
-            };
-          },
-        );
-
       const response =
         await submitTrakeToDres(
           evaluationId,
           bridgeToken,
           {
-            events:
-              requestEvents,
+            media_item_name:
+              normalizedVideoId,
+
+            frame_ids:
+              frameIds,
           },
         );
 
@@ -301,19 +298,16 @@ export function TrakeSubmissionModal({
             .description ??
           "TRAKE submission sent to DRES.",
 
-        submittedEvents:
-          response.submitted.events.map(
-            (event) => ({
-              index:
-                event.index,
+        videoId:
+          response.submitted
+            .media_item_name,
 
-              mediaItemName:
-                event.media_item_name,
+        frameIds:
+          response.submitted
+            .frame_ids,
 
-              startMs:
-                event.start_ms,
-            }),
-          ),
+        submittedText:
+          response.submitted.text,
       });
     } catch (error) {
       const message =
@@ -362,7 +356,7 @@ export function TrakeSubmissionModal({
         <header className="manual-kis__header">
           <div>
             <span className="manual-kis__eyebrow">
-              Ordered temporal submission
+              Ordered semantic keyframes
             </span>
 
             <h2 id="trake-submission-title">
@@ -406,11 +400,26 @@ export function TrakeSubmissionModal({
                 </div>
 
                 <div>
-                  <dt>Events</dt>
+                  <dt>Video ID</dt>
+                  <dd>
+                    {result.videoId}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>Frame IDs</dt>
+                  <dd>
+                    {result.frameIds.join(
+                      ", ",
+                    )}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>Frames</dt>
                   <dd>
                     {
-                      result
-                        .submittedEvents
+                      result.frameIds
                         .length
                     }
                   </dd>
@@ -418,28 +427,42 @@ export function TrakeSubmissionModal({
               </dl>
 
               <div className="manual-kis__preview">
-                {result.submittedEvents
-                  .map(
-                    (event) =>
-                      `${event.index + 1}. ${event.mediaItemName} @ ${(event.startMs / 1000).toFixed(3)}s`,
-                  )
-                  .join(" → ")}
+                {result.submittedText}
               </div>
             </div>
           ) : (
             <>
-              {events.map(
+              <label className="manual-kis__field">
+                <span>
+                  Video ID
+                </span>
+
+                <input
+                  value={videoId}
+                  onChange={(event) =>
+                    setVideoId(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="L27_V004"
+                  disabled={isSubmitting}
+                  autoFocus
+                />
+              </label>
+
+              {frames.map(
                 (
-                  event,
+                  frame,
                   index,
                 ) => (
                   <div
-                    key={event.id}
+                    key={frame.id}
                     className="manual-kis__details"
                   >
                     <div>
                       <strong>
-                        Event {index + 1}
+                        Frame ID{" "}
+                        {index + 1}
                       </strong>
 
                       <div>
@@ -451,12 +474,12 @@ export function TrakeSubmissionModal({
                             index === 0
                           }
                           onClick={() =>
-                            moveEvent(
+                            moveFrame(
                               index,
                               -1,
                             )
                           }
-                          aria-label={`Move event ${index + 1} up`}
+                          aria-label={`Move frame ${index + 1} up`}
                         >
                           <ArrowUp
                             size={16}
@@ -469,16 +492,16 @@ export function TrakeSubmissionModal({
                           disabled={
                             isSubmitting ||
                             index ===
-                              events.length -
+                              frames.length -
                                 1
                           }
                           onClick={() =>
-                            moveEvent(
+                            moveFrame(
                               index,
                               1,
                             )
                           }
-                          aria-label={`Move event ${index + 1} down`}
+                          aria-label={`Move frame ${index + 1} down`}
                         >
                           <ArrowDown
                             size={16}
@@ -490,15 +513,14 @@ export function TrakeSubmissionModal({
                           className="manual-kis__secondary"
                           disabled={
                             isSubmitting ||
-                            events.length <=
-                              1
+                            frames.length <= 1
                           }
                           onClick={() =>
-                            removeEvent(
-                              event.id,
+                            removeFrame(
+                              frame.id,
                             )
                           }
-                          aria-label={`Remove event ${index + 1}`}
+                          aria-label={`Remove frame ${index + 1}`}
                         >
                           <Trash2
                             size={16}
@@ -509,204 +531,31 @@ export function TrakeSubmissionModal({
 
                     <label className="manual-kis__field">
                       <span>
-                        Video ID
+                        Frame index
                       </span>
 
                       <input
+                        type="number"
+                        min="0"
+                        step="1"
                         value={
-                          event.videoId
+                          frame.frameId
                         }
                         onChange={(
-                          changeEvent,
+                          event,
                         ) =>
-                          updateEvent(
-                            event.id,
-                            {
-                              videoId:
-                                changeEvent
-                                  .target
-                                  .value,
-                            },
+                          updateFrame(
+                            frame.id,
+                            event.target
+                              .value,
                           )
                         }
-                        placeholder="L21_V001"
+                        placeholder="11740"
                         disabled={
                           isSubmitting
                         }
                       />
                     </label>
-
-                    <div className="manual-kis__mode">
-                      <button
-                        type="button"
-                        className={
-                          event.mode ===
-                          "frame"
-                            ? "manual-kis__mode-button manual-kis__mode-button--active"
-                            : "manual-kis__mode-button"
-                        }
-                        disabled={
-                          isSubmitting
-                        }
-                        onClick={() =>
-                          updateEvent(
-                            event.id,
-                            {
-                              mode:
-                                "frame",
-                            },
-                          )
-                        }
-                      >
-                        By frame
-                      </button>
-
-                      <button
-                        type="button"
-                        className={
-                          event.mode ===
-                          "timestamp"
-                            ? "manual-kis__mode-button manual-kis__mode-button--active"
-                            : "manual-kis__mode-button"
-                        }
-                        disabled={
-                          isSubmitting
-                        }
-                        onClick={() =>
-                          updateEvent(
-                            event.id,
-                            {
-                              mode:
-                                "timestamp",
-                            },
-                          )
-                        }
-                      >
-                        By timestamp
-                      </button>
-                    </div>
-
-                    {event.mode ===
-                    "frame" ? (
-                      <>
-                        <label className="manual-kis__field">
-                          <span>
-                            Frame index
-                          </span>
-
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={
-                              event.frameIndex
-                            }
-                            onChange={(
-                              changeEvent,
-                            ) =>
-                              updateEvent(
-                                event.id,
-                                {
-                                  frameIndex:
-                                    changeEvent
-                                      .target
-                                      .value,
-                                },
-                              )
-                            }
-                            placeholder="23460"
-                            disabled={
-                              isSubmitting
-                            }
-                          />
-                        </label>
-
-                        <label className="manual-kis__field">
-                          <span>
-                            FPS
-                          </span>
-
-                          <input
-                            type="number"
-                            min="0"
-                            step="any"
-                            value={
-                              event.fps
-                            }
-                            onChange={(
-                              changeEvent,
-                            ) =>
-                              updateEvent(
-                                event.id,
-                                {
-                                  fps:
-                                    changeEvent
-                                      .target
-                                      .value,
-                                },
-                              )
-                            }
-                            placeholder="30"
-                            disabled={
-                              isSubmitting
-                            }
-                          />
-                        </label>
-
-                        {event.frameIndex &&
-                          event.fps &&
-                          Number(
-                            event.fps,
-                          ) > 0 && (
-                            <div className="manual-kis__preview">
-                              Timestamp:{" "}
-                              {(
-                                Number(
-                                  event.frameIndex,
-                                ) /
-                                Number(
-                                  event.fps,
-                                )
-                              ).toFixed(
-                                3,
-                              )}
-                              s
-                            </div>
-                          )}
-                      </>
-                    ) : (
-                      <label className="manual-kis__field">
-                        <span>
-                          Timestamp seconds
-                        </span>
-
-                        <input
-                          type="number"
-                          min="0"
-                          step="any"
-                          value={
-                            event.timestamp
-                          }
-                          onChange={(
-                            changeEvent,
-                          ) =>
-                            updateEvent(
-                              event.id,
-                              {
-                                timestamp:
-                                  changeEvent
-                                    .target
-                                    .value,
-                              },
-                            )
-                          }
-                          placeholder="782.000"
-                          disabled={
-                            isSubmitting
-                          }
-                        />
-                      </label>
-                    )}
                   </div>
                 ),
               )}
@@ -715,14 +564,21 @@ export function TrakeSubmissionModal({
                 type="button"
                 className="manual-kis__secondary"
                 disabled={isSubmitting}
-                onClick={addEvent}
+                onClick={addFrame}
               >
                 <Plus size={18} />
-                Add event
+                Add frame
               </button>
 
               <div className="manual-kis__preview">
-                Event order is preserved
+                Submission format:{" "}
+                <strong>
+                  {getPreviewText()}
+                </strong>
+              </div>
+
+              <div className="manual-kis__preview">
+                Frame order is preserved
                 exactly as shown above.
               </div>
 

@@ -26,6 +26,13 @@ echo Starting AIC DRES Bridge...
 echo Host: %BRIDGE_HOST%
 echo Port: %BRIDGE_PORT%
 echo Workers: 1
+
+if defined DRES_BASE_URL (
+    echo DRES target: %DRES_BASE_URL%
+) else (
+    echo DRES target: http://127.0.0.1:8080 ^(bridge.py default^)
+)
+
 echo.
 
 ".venv\Scripts\python.exe" -m uvicorn bridge:app ^

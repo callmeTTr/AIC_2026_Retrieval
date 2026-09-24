@@ -19,20 +19,24 @@ import "./ManualKisSubmissionModal.css";
 
 type ManualMode =
   | "frame"
-  | "timestamp";
+  | "milliseconds";
 
 interface ManualKisSubmissionModalProps {
+  initialVideoId?: string;
+  initialTimestampMs?: number;
   onClose: () => void;
 }
 
 export function ManualKisSubmissionModal({
+  initialVideoId = "",
+  initialTimestampMs,
   onClose,
 }: ManualKisSubmissionModalProps) {
   const [mode, setMode] =
-    useState<ManualMode>("frame");
+    useState<ManualMode>("milliseconds");
 
   const [videoId, setVideoId] =
-    useState("");
+    useState(initialVideoId);
 
   const [frameIndex, setFrameIndex] =
     useState("");
@@ -41,7 +45,15 @@ export function ManualKisSubmissionModal({
     useState("");
 
   const [timestamp, setTimestamp] =
-    useState("");
+    useState(
+      initialTimestampMs === undefined
+        ? ""
+        : String(
+            Math.round(
+              initialTimestampMs,
+            ),
+          ),
+    );
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
@@ -53,19 +65,19 @@ export function ManualKisSubmissionModal({
     useState<{
       submission: string;
       description: string;
-      timestampSeconds: number;
+      timestampMs: number;
     } | null>(null);
 
-  function resolveTimestamp(): number {
-    if (mode === "timestamp") {
+  function resolveTimestampMs(): number {
+    if (mode === "milliseconds") {
       const value = Number(timestamp);
 
       if (
-        !Number.isFinite(value) ||
+        !Number.isInteger(value) ||
         value < 0
       ) {
         throw new Error(
-          "Timestamp must be a valid number greater than or equal to 0.",
+          "Timestamp must be a non-negative integer in milliseconds.",
         );
       }
 
@@ -96,7 +108,9 @@ export function ManualKisSubmissionModal({
       );
     }
 
-    return frameValue / fpsValue;
+    return Math.round(
+      (frameValue / fpsValue) * 1000,
+    );
   }
 
   async function handleSubmit() {
@@ -135,8 +149,8 @@ export function ManualKisSubmissionModal({
     setResult(null);
 
     try {
-      const timestampSeconds =
-        resolveTimestamp();
+      const timestampMs =
+        resolveTimestampMs();
 
       const response =
         await submitToDres(
@@ -145,8 +159,8 @@ export function ManualKisSubmissionModal({
           {
             media_item_name:
               normalizedVideoId,
-            timestamp_seconds:
-              timestampSeconds,
+            timestamp_ms:
+              timestampMs,
           },
         );
 
@@ -169,7 +183,7 @@ export function ManualKisSubmissionModal({
           response.dres_response.description ??
           "Submission sent to DRES.",
 
-        timestampSeconds,
+        timestampMs,
       });
     } catch (error) {
       setErrorMessage(
@@ -236,10 +250,7 @@ export function ManualKisSubmissionModal({
                 <div>
                   <dt>Timestamp</dt>
                   <dd>
-                    {result.timestampSeconds.toFixed(
-                      3,
-                    )}
-                    s
+                    {result.timestampMs} ms
                   </dd>
                 </div>
               </dl>
@@ -280,16 +291,16 @@ export function ManualKisSubmissionModal({
                 <button
                   type="button"
                   className={
-                    mode === "timestamp"
+                    mode === "milliseconds"
                       ? "manual-kis__mode-button manual-kis__mode-button--active"
                       : "manual-kis__mode-button"
                   }
                   onClick={() =>
-                    setMode("timestamp")
+                    setMode("milliseconds")
                   }
                   disabled={isSubmitting}
                 >
-                  By timestamp
+                  Milliseconds
                 </button>
               </div>
 
@@ -336,20 +347,20 @@ export function ManualKisSubmissionModal({
               ) : (
                 <label className="manual-kis__field">
                   <span>
-                    Timestamp seconds
+                    Timestamp (ms)
                   </span>
 
                   <input
                     type="number"
                     min="0"
-                    step="any"
+                    step="1"
                     value={timestamp}
                     onChange={(event) =>
                       setTimestamp(
                         event.target.value,
                       )
                     }
-                    placeholder="782.000"
+                    placeholder="262603"
                     disabled={isSubmitting}
                   />
                 </label>
@@ -361,11 +372,13 @@ export function ManualKisSubmissionModal({
                 Number(fps) > 0 && (
                   <div className="manual-kis__preview">
                     Calculated timestamp:{" "}
-                    {(
-                      Number(frameIndex) /
-                      Number(fps)
-                    ).toFixed(3)}
-                    s
+                    {Math.round(
+                      (
+                        Number(frameIndex) /
+                        Number(fps)
+                      ) * 1000,
+                    )}
+                    {" ms"}
                   </div>
                 )}
 

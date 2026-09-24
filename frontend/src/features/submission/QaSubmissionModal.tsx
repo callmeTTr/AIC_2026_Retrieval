@@ -18,15 +18,28 @@ import {
 import "./ManualKisSubmissionModal.css";
 
 interface QaSubmissionModalProps {
+  initialVideoId?: string;
+  initialTimestampMs?: number;
   onClose: () => void;
 }
 
 export function QaSubmissionModal({
+  initialVideoId = "",
+  initialTimestampMs,
   onClose,
 }: QaSubmissionModalProps) {
   const [answer, setAnswer] =
     useState("");
 
+  const [videoId, setVideoId] =
+    useState(initialVideoId);
+
+  const [timestampMs, setTimestampMs] =
+    useState(
+      initialTimestampMs !== undefined
+        ? String(initialTimestampMs)
+        : "",
+    );
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
@@ -38,20 +51,46 @@ export function QaSubmissionModal({
       submission: string;
       description: string;
       answer: string;
+      videoId: string;
+      timestampMs: number;
+      submittedText: string;
       awaitingVerdict: boolean;
     } | null>(null);
 
   async function handleSubmit() {
     const normalizedAnswer =
       answer.trim();
+    const normalizedVideoId =
+      videoId
+        .trim()
+        .replace(/\.mp4$/i, "");
 
+    const normalizedTimestampMs =
+      Number(timestampMs);
     if (!normalizedAnswer) {
       setErrorMessage(
         "Answer is required.",
       );
       return;
     }
+    if (!normalizedVideoId) {
+      setErrorMessage(
+        "Video ID is required.",
+      );
+      return;
+    }
 
+    if (
+      !Number.isInteger(
+        normalizedTimestampMs,
+      ) ||
+      normalizedTimestampMs < 0
+    ) {
+      setErrorMessage(
+        "Timestamp must be a non-negative integer in milliseconds.",
+      );
+      return;
+    }
     const evaluationId =
       getDresRunId().trim();
 
@@ -83,6 +122,10 @@ export function QaSubmissionModal({
           bridgeToken,
           {
             answer: normalizedAnswer,
+            media_item_name:
+              normalizedVideoId,
+            timestamp_ms:
+              normalizedTimestampMs,
           },
         );
 
@@ -109,7 +152,14 @@ export function QaSubmissionModal({
           "QA submission sent to DRES.",
 
         answer: normalizedAnswer,
+        videoId:
+          response.submitted.media_item_name,
 
+        timestampMs:
+          response.submitted.timestamp_ms,
+
+        submittedText:
+          response.submitted.text,
         awaitingVerdict:
           response.dres_http_status === 202 ||
           submission === "INDETERMINATE",
@@ -207,9 +257,23 @@ export function QaSubmissionModal({
                 </div>
 
                 <div>
-                  <dt>Answer</dt>
+                  <dt>Video ID</dt>
                   <dd>
-                    {result.answer}
+                    {result.videoId}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>Timestamp</dt>
+                  <dd>
+                    {result.timestampMs} ms
+                  </dd>
+                </div>
+
+                <div>
+                  <dt>Submitted text</dt>
+                  <dd>
+                    {result.submittedText}
                   </dd>
                 </div>
               </dl>
@@ -232,9 +296,57 @@ export function QaSubmissionModal({
                 />
               </label>
 
+              <label className="manual-kis__field">
+                <span>Video ID</span>
+
+                <input
+                  value={videoId}
+                  onChange={(event) =>
+                    setVideoId(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="L27_V004"
+                  disabled={isSubmitting}
+                />
+              </label>
+
+              <label className="manual-kis__field">
+                <span>Timestamp (ms)</span>
+
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={timestampMs}
+                  onChange={(event) =>
+                    setTimestampMs(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="480157"
+                  disabled={isSubmitting}
+                />
+              </label>
+
               <div className="manual-kis__preview">
-                DRES textual QA submits the
-                answer text only.
+                Submission format:{" "}
+                <strong>
+                  QA-
+                  {answer.trim() ||
+                    "<ANSWER>"}
+                  -
+                  {videoId
+                    .trim()
+                    .replace(
+                      /\.mp4$/i,
+                      "",
+                    ) ||
+                    "<VIDEO_ID>"}
+                  -
+                  {timestampMs ||
+                    "<TIME(ms)>"}
+                </strong>
               </div>
 
               {errorMessage && (

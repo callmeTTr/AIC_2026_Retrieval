@@ -38,8 +38,9 @@ export async function submitResult(
     bridgeToken,
     {
       media_item_name: request.video_id,
-      timestamp_seconds:
-        request.timestamp_seconds,
+      timestamp_ms: Math.round(
+        request.timestamp_seconds * 1000,
+      ),
     },
   );
 

@@ -6,6 +6,9 @@ import {
 import {
   TeamRoomPanel,
 } from "../team-workspace/TeamRoomPanel";
+import type {
+  TeamWorkspaceItem,
+} from "../team-workspace/team-workspace.api";
 import {
   resolveDresSubmissionMode,
   type DresCurrentTask,
@@ -77,11 +80,83 @@ export function AppHeader({
     isTrakeSubmitOpen,
     setIsTrakeSubmitOpen,
   ] = useState(false);
+  const [
+    submissionPrefill,
+    setSubmissionPrefill,
+  ] = useState<{
+    videoId: string;
+    timestampMs: number;
+  } | null>(null);
   const submissionMode =
     resolveDresSubmissionMode(
       currentDresTask,
       dresSubmissionModeSetting,
     );
+  function handleTeamCandidateSubmit(
+    item: TeamWorkspaceItem,
+  ) {
+    const prefill = {
+      videoId:
+        item.video_id,
+
+      timestampMs:
+        Math.round(
+          item.timestamp_seconds *
+            1000,
+        ),
+    };
+
+    setIsTeamOpen(false);
+    setIsDresOpen(false);
+
+    setIsManualSubmitOpen(false);
+    setIsQaSubmitOpen(false);
+    setIsTrakeSubmitOpen(false);
+
+    if (
+      submissionMode === "KIS"
+    ) {
+      setSubmissionPrefill(
+        prefill,
+      );
+
+      setIsManualSubmitOpen(
+        true,
+      );
+
+      return;
+    }
+
+    if (
+      submissionMode === "QA"
+    ) {
+      setSubmissionPrefill(
+        prefill,
+      );
+
+      setIsQaSubmitOpen(
+        true,
+      );
+
+      return;
+    }
+
+    setSubmissionPrefill(null);
+
+    if (
+      submissionMode === "TRAKE"
+    ) {
+      window.alert(
+        "TRAKE requires an ordered semantic-keyframe chain. A single Team Room candidate cannot be submitted as TRAKE.",
+      );
+
+      return;
+    }
+
+    window.alert(
+      "Choose KIS, QA or TRAKE submission mode first.",
+    );
+  }
   return (
     <header className="app-header">
       <div className="app-header__brand">
@@ -120,18 +195,71 @@ export function AppHeader({
       </nav>
 
       <div className="app-header__actions">
+        <div
+          className="app-header__submission-mode"
+          role="group"
+          aria-label="DRES submission mode"
+        >
+          {(
+            [
+              "AUTO",
+              "KIS",
+              "QA",
+              "TRAKE",
+            ] as const
+          ).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={
+                dresSubmissionModeSetting ===
+                mode
+                  ? "app-header__mode-button app-header__mode-button--active"
+                  : "app-header__mode-button"
+              }
+              aria-pressed={
+                dresSubmissionModeSetting ===
+                mode
+              }
+              title={
+                mode === "AUTO"
+                  ? `Auto detect from DRES${
+                      submissionMode !==
+                      "UNKNOWN"
+                        ? ` · detected ${submissionMode}`
+                        : ""
+                    }`
+                  : `Use ${mode} submission mode`
+              }
+              onClick={() =>
+                onDresSubmissionModeSettingChange(
+                  mode,
+                )
+              }
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
         <button
           type="button"
           className="app-header__manual-button"
-          disabled={submissionMode === "UNKNOWN"}
+          disabled={
+            submissionMode === "UNKNOWN"
+          }
           title={
             submissionMode === "UNKNOWN"
-              ? "Connect to a supported active DRES task first."
+              ? "Choose KIS, QA or TRAKE, or connect to a supported active DRES task."
               : `Current submission mode: ${submissionMode}`
           }
           onClick={() => {
             setIsDresOpen(false);
             setIsTeamOpen(false);
+
+            setSubmissionPrefill(
+              null,
+            );
 
             setIsManualSubmitOpen(
               submissionMode === "KIS",
@@ -206,6 +334,9 @@ export function AppHeader({
               currentTaskName={
                 currentDresTask?.name ?? ""
               }
+              onSubmitCandidate={
+                handleTeamCandidateSubmit
+              }
               onClose={() =>
                 setIsTeamOpen(false)
               }
@@ -214,17 +345,45 @@ export function AppHeader({
         </div>
         {isManualSubmitOpen && (
           <ManualKisSubmissionModal
-            onClose={() =>
-              setIsManualSubmitOpen(false)
+            initialVideoId={
+              submissionPrefill
+                ?.videoId
             }
+            initialTimestampMs={
+              submissionPrefill
+                ?.timestampMs
+            }
+            onClose={() => {
+              setIsManualSubmitOpen(
+                false,
+              );
+
+              setSubmissionPrefill(
+                null,
+              );
+            }}
           />
         )}
 
         {isQaSubmitOpen && (
           <QaSubmissionModal
-            onClose={() =>
-              setIsQaSubmitOpen(false)
+            initialVideoId={
+              submissionPrefill
+                ?.videoId
             }
+            initialTimestampMs={
+              submissionPrefill
+                ?.timestampMs
+            }
+            onClose={() => {
+              setIsQaSubmitOpen(
+                false,
+              );
+
+              setSubmissionPrefill(
+                null,
+              );
+            }}
           />
         )}
                 {isTrakeSubmitOpen && (

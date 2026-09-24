@@ -25,12 +25,16 @@ import "./TeamRoomPanel.css";
 
 interface TeamRoomPanelProps {
   currentTaskName: string;
+  onSubmitCandidate?: (
+    item: TeamWorkspaceItem,
+  ) => void;
   onClose: () => void;
 }
 
 
 export function TeamRoomPanel({
   currentTaskName,
+  onSubmitCandidate,
   onClose,
 }: TeamRoomPanelProps) {
   const [
@@ -619,10 +623,11 @@ export function TeamRoomPanel({
                         Frame{" "}
                         {item.frame_index}
                         {" · "}
-                        {item.timestamp_seconds.toFixed(
-                          2,
-                        )}
-                        s
+                        {Math.round(
+                          item.timestamp_seconds *
+                            1000,
+                        )}{" "}
+                        ms
                       </small>
 
                       {item.note && (
@@ -715,10 +720,11 @@ export function TeamRoomPanel({
                   Frame{" "}
                   {previewItem.frame_index}
                   {" · "}
-                  {previewItem.timestamp_seconds.toFixed(
-                    2,
-                  )}
-                  s
+                  {Math.round(
+                    previewItem.timestamp_seconds *
+                      1000,
+                  )}{" "}
+                  ms
                 </small>
               </div>
 
@@ -834,6 +840,26 @@ export function TeamRoomPanel({
                 }
               >
                 Play Video
+              </button>
+
+              <button
+                type="button"
+                className="team-room-preview__action"
+                disabled={
+                  !onSubmitCandidate
+                }
+                onClick={() => {
+                  const item =
+                    previewItem;
+
+                  setPreviewItem(null);
+
+                  onSubmitCandidate?.(
+                    item,
+                  );
+                }}
+              >
+                Submit
               </button>
             </footer>
           </section>

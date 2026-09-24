@@ -10,6 +10,19 @@ export interface DresLogoutResponse {
   status: string;
   session_removed: boolean;
 }
+export interface DresEvaluation {
+  id: string;
+  name?: string;
+  type?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
+export interface DresEvaluationListResponse {
+  status: string;
+  evaluations: DresEvaluation[];
+  active_evaluations: DresEvaluation[];
+}
 export interface DresCurrentTask {
   name: string;
   taskGroup: string;
@@ -36,14 +49,37 @@ export function getDresSubmissionMode(
     return "UNKNOWN";
   }
 
-  const taskType = task.taskType.trim();
+  const taskType =
+    task.taskType.trim();
 
-  if (taskType === "Textual Known Item Search") {
+  if (
+    taskType ===
+    "Textual Known Item Search"
+  ) {
     return "KIS";
   }
 
-  if (taskType === "LSC Question & Answer Text") {
+  if (
+    taskType ===
+    "LSC Question & Answer Text"
+  ) {
     return "QA";
+  }
+
+  const taskDescriptor = [
+    task.name,
+    task.taskGroup,
+    task.taskType,
+  ]
+    .join(" ")
+    .toUpperCase();
+
+  if (
+    taskDescriptor.includes(
+      "TRAKE",
+    )
+  ) {
+    return "TRAKE";
   }
 
   return "UNKNOWN";
@@ -68,15 +104,9 @@ export interface DresStartTaskResponse {
     [key: string]: unknown;
   };
 }
-export interface DresTrakeEvent {
-  media_item_name: string;
-  timestamp_seconds: number;
-  media_item_collection_name?: string;
-  segment_duration_seconds?: number;
-}
-
 export interface DresTrakeSubmitRequest {
-  events: DresTrakeEvent[];
+  media_item_name: string;
+  frame_ids: number[];
 }
 
 export interface DresTrakeSubmitResponse {
@@ -84,12 +114,9 @@ export interface DresTrakeSubmitResponse {
   dres_http_status: number;
   task: string;
   submitted: {
-    events: Array<{
-      index: number;
-      media_item_name: string;
-      start_ms: number;
-      end_ms: number;
-    }>;
+    media_item_name: string;
+    frame_ids: number[];
+    text: string;
   };
   dres_response: {
     status?: boolean;
@@ -100,6 +127,8 @@ export interface DresTrakeSubmitResponse {
 }
 export interface DresQaSubmitRequest {
   answer: string;
+  media_item_name: string;
+  timestamp_ms: number;
 }
 
 export interface DresQaSubmitResponse {
@@ -108,6 +137,9 @@ export interface DresQaSubmitResponse {
   task: string;
   submitted: {
     answer: string;
+    media_item_name: string;
+    timestamp_ms: number;
+    text: string;
   };
   dres_response: {
     status?: boolean;
@@ -118,7 +150,14 @@ export interface DresQaSubmitResponse {
 }
 export interface DresSubmitRequest {
   media_item_name: string;
-  timestamp_seconds: number;
+
+  // Official competition submission unit.
+  timestamp_ms?: number;
+
+  // Temporary legacy compatibility while older
+  // submission flows are being migrated.
+  timestamp_seconds?: number;
+
   media_item_collection_name?: string;
   segment_duration_seconds?: number;
 }
@@ -141,7 +180,69 @@ export interface DresSubmitResponse {
 }
 
 interface DresErrorResponse {
-  detail?: string;
+  detail?: unknown;
+}
+
+function getDresErrorMessage(
+  status: number,
+  detail: string,
+): string {
+  if (status === 401) {
+    return (
+      "DRES session expired or is no longer valid. " +
+      "Reconnect to DRES before submitting."
+    );
+  }
+
+  if (status === 403) {
+    return (
+      "DRES rejected access for this session. " +
+      "Reconnect to DRES and verify the active evaluation."
+    );
+  }
+
+  if (status === 404) {
+    return (
+      detail ||
+      (
+        "The active DRES evaluation or task was not found. " +
+        "Reconnect or refresh the active evaluation."
+      )
+    );
+  }
+
+  if (status === 409) {
+    return (
+      detail ||
+      "Duplicate submission blocked."
+    );
+  }
+
+  if (status === 504) {
+    return (
+      detail ||
+      (
+        "DRES submission timed out. Delivery status is unknown, " +
+        "so do not retry the identical answer automatically."
+      )
+    );
+  }
+
+  if (status === 502) {
+    return (
+      detail ||
+      (
+        "DRES is currently unreachable through the Bridge. " +
+        "Check the Bridge connection and try again."
+      )
+    );
+  }
+
+  if (detail) {
+    return detail;
+  }
+
+  return `DRES request failed with status ${status}.`;
 }
 
 function buildDresUrl(path: string): string {
@@ -158,33 +259,76 @@ async function dresRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(
-    buildDresUrl(path),
-    {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
+  let response: Response;
+
+  try {
+    response = await fetch(
+      buildDresUrl(path),
+      {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
       },
-    },
-  );
+    );
+  } catch {
+    throw new Error(
+      (
+        "Unable to reach the DRES Bridge. " +
+        "Check the Bridge/Tailscale connection and try again."
+      ),
+    );
+  }
 
   if (!response.ok) {
-    let message =
-      `DRES request failed with status ${response.status}`;
+    let detail = "";
 
     try {
-      const body =
-        (await response.json()) as DresErrorResponse;
+      const rawBody =
+        await response.text();
 
-      if (body.detail) {
-        message = body.detail;
+      if (rawBody) {
+        try {
+          const body =
+            JSON.parse(
+              rawBody,
+            ) as DresErrorResponse;
+
+          if (
+            typeof body.detail ===
+            "string"
+          ) {
+            detail =
+              body.detail.trim();
+          } else if (
+            body.detail !==
+              undefined &&
+            body.detail !== null
+          ) {
+            detail =
+              JSON.stringify(
+                body.detail,
+              );
+          } else {
+            detail =
+              rawBody.trim();
+          }
+        } catch {
+          detail =
+            rawBody.trim();
+        }
       }
     } catch {
-      // Response may not be JSON.
+      // Keep the fallback message below.
     }
 
-    throw new Error(message);
+    throw new Error(
+      getDresErrorMessage(
+        response.status,
+        detail,
+      ),
+    );
   }
 
   return (await response.json()) as T;
@@ -212,6 +356,19 @@ export function logoutFromDres(
     "/logout",
     {
       method: "POST",
+      headers: {
+        "X-Bridge-Token": bridgeToken,
+      },
+    },
+  );
+}
+export function getDresEvaluations(
+  bridgeToken: string,
+): Promise<DresEvaluationListResponse> {
+  return dresRequest<DresEvaluationListResponse>(
+    "/evaluations",
+    {
+      method: "GET",
       headers: {
         "X-Bridge-Token": bridgeToken,
       },

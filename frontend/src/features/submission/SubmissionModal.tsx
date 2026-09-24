@@ -210,7 +210,26 @@ export function SubmissionModal({
                 <div>
                   <dt>Timestamp</dt>
                   <dd>
-                    {result.timestamp_display}
+                    {Math.round(
+                      (
+                        typeof result.frame_timestamp_seconds ===
+                          "number" &&
+                        Number.isFinite(
+                          result.frame_timestamp_seconds,
+                        )
+                          ? result.frame_timestamp_seconds
+                          : typeof result.fps ===
+                                "number" &&
+                              Number.isFinite(
+                                result.fps,
+                              ) &&
+                              result.fps > 0
+                            ? result.frame_index /
+                              result.fps
+                            : result.timestamp_seconds
+                      ) * 1000,
+                    )}{" "}
+                    ms
                   </dd>
                 </div>
               </dl>

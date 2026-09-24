@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import {
   getCurrentDresTask,
+  getDresEvaluations,
   loginToDres,
   logoutFromDres,
   startDresTask,
@@ -182,13 +183,8 @@ export function DresConnectionPanel({
   }, [onCurrentTaskChange]);
 
   async function handleConnect() {
-    const normalizedRunId = runId.trim();
+    const requestedRunId = runId.trim();
     const normalizedUsername = username.trim();
-
-    if (!normalizedRunId) {
-      setErrorMessage("Run ID is required.");
-      return;
-    }
 
     if (!normalizedUsername || !password) {
       setErrorMessage(
@@ -206,18 +202,56 @@ export function DresConnectionPanel({
         password,
       );
 
+      let resolvedRunId = requestedRunId;
+
+      if (!resolvedRunId) {
+        const evaluationResponse =
+          await getDresEvaluations(
+            response.access_token,
+          );
+
+        if (
+          evaluationResponse.active_evaluations
+            .length === 0
+        ) {
+          throw new Error(
+            "No active DRES evaluation was found. Enter a Run ID manually if needed.",
+          );
+        }
+
+        if (
+          evaluationResponse.active_evaluations
+            .length > 1
+        ) {
+          throw new Error(
+            "Multiple active DRES evaluations were found. Enter the Run ID manually.",
+          );
+        }
+
+        resolvedRunId = String(
+          evaluationResponse.active_evaluations[0]
+            .id ?? "",
+        ).trim();
+
+        if (!resolvedRunId) {
+          throw new Error(
+            "The active DRES evaluation has no ID.",
+          );
+        }
+      }
+
       const task = await validateRun(
-        normalizedRunId,
+        resolvedRunId,
         response.access_token,
       );
 
-      setDresRunId(normalizedRunId);
+      setDresRunId(resolvedRunId);
       setDresBridgeToken(response.access_token);
       setDresUsername(
         response.username ?? normalizedUsername,
       );
 
-      setRunId(normalizedRunId);
+      setRunId(resolvedRunId);
       setUsername(
         response.username ?? normalizedUsername,
       );
@@ -455,14 +489,14 @@ export function DresConnectionPanel({
             </select>
           </label>
           <label className="dres-panel__field">
-            <span>Run ID</span>
+            <span>Run ID (optional)</span>
 
             <input
               value={runId}
               onChange={(event) =>
                 setRunId(event.target.value)
               }
-              placeholder="Evaluation / Run ID"
+              placeholder="Leave blank to auto-detect active evaluation"
             />
           </label>
 

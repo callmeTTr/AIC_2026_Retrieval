@@ -24,6 +24,16 @@ import "./VideoPlayerModal.css";
 
 interface VideoPlayerModalProps {
   result: SearchResult;
+
+  onSubmitCurrentFrame?: (
+    timestampSeconds: number,
+    frameIndex: number | null,
+  ) => Promise<void>;
+
+  onUseCurrentFrameForQa?: (
+    timestampMs: number,
+  ) => void;
+
   onClose: () => void;
 }
 
@@ -80,6 +90,8 @@ function formatPlaybackTime(
 
 export function VideoPlayerModal({
   result,
+  onSubmitCurrentFrame,
+  onUseCurrentFrameForQa,
   onClose,
 }: VideoPlayerModalProps) {
   const videoRef =
@@ -105,7 +117,18 @@ export function VideoPlayerModal({
 
   const [frameCopied, setFrameCopied] =
     useState(false);
+  const [isPaused, setIsPaused] =
+    useState(true);
 
+  const [
+    isSubmittingCurrentFrame,
+    setIsSubmittingCurrentFrame,
+  ] = useState(false);
+
+  const [
+    lastSubmittedTimestampMs,
+    setLastSubmittedTimestampMs,
+  ] = useState<number | null>(null);
   const fps =
     typeof result.fps === "number" &&
     Number.isFinite(result.fps) &&
@@ -124,7 +147,36 @@ export function VideoPlayerModal({
           ),
         )
       : null;
+  const currentTimestampMs =
+    actualSeekTime !== null &&
+    Number.isFinite(actualSeekTime)
+      ? Math.max(
+          0,
+          Math.round(
+            actualSeekTime * 1000,
+          ),
+        )
+      : null;
 
+  const alreadySubmittedCurrentFrame =
+    currentTimestampMs !== null &&
+    lastSubmittedTimestampMs ===
+      currentTimestampMs;
+
+  const canSubmitCurrentFrame =
+    onSubmitCurrentFrame !== undefined &&
+    playbackState === "ready" &&
+    isPaused &&
+    actualSeekTime !== null &&
+    currentTimestampMs !== null &&
+    !isSubmittingCurrentFrame &&
+    !alreadySubmittedCurrentFrame;
+
+  const canUseCurrentFrameForQa =
+    onUseCurrentFrameForQa !== undefined &&
+    playbackState === "ready" &&
+    isPaused &&
+    currentTimestampMs !== null;
   const targetTimestamp = Math.max(
     0,
     result.timestamp_seconds,
@@ -188,7 +240,9 @@ export function VideoPlayerModal({
     setPlaybackRate(1);
     setFrameStep(1);
     setFrameCopied(false);
-
+    setIsPaused(true);
+    setIsSubmittingCurrentFrame(false);
+    setLastSubmittedTimestampMs(null);
     suppressAutoplayOnNextSeekRef.current =
       false;
   }, [
@@ -291,7 +345,12 @@ export function VideoPlayerModal({
       return;
     }
 
+    setIsPaused(true);
     updateCurrentPosition(video);
+  }
+
+  function handlePlay() {
+    setIsPaused(false);
   }
 
   function handleRateChange() {
@@ -379,7 +438,47 @@ export function VideoPlayerModal({
     video.currentTime =
       targetFrame / fps;
   }
+  async function submitCurrentFrame() {
+    const timestampSeconds =
+      actualSeekTime;
 
+    const timestampMs =
+      currentTimestampMs;
+
+    if (
+      !onSubmitCurrentFrame ||
+      timestampSeconds === null ||
+      timestampMs === null ||
+      !isPaused ||
+      playbackState !== "ready" ||
+      isSubmittingCurrentFrame ||
+      lastSubmittedTimestampMs ===
+        timestampMs
+    ) {
+      return;
+    }
+
+    setIsSubmittingCurrentFrame(true);
+
+    try {
+      await onSubmitCurrentFrame(
+        timestampSeconds,
+        currentFrame,
+      );
+
+      setLastSubmittedTimestampMs(
+        timestampMs,
+      );
+    } catch (error) {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit the current frame.",
+      );
+    } finally {
+      setIsSubmittingCurrentFrame(false);
+    }
+  }
   async function copyCurrentFrame() {
     if (currentFrame === null) {
       return;
@@ -525,10 +624,10 @@ export function VideoPlayerModal({
               {" · "}
               Frame {result.frame_index}
               {" · "}
-              {targetTimestamp.toFixed(
-                3,
+              {Math.round(
+                targetTimestamp * 1000,
               )}
-              s
+              {" ms"}
             </span>
           </div>
 
@@ -585,6 +684,9 @@ export function VideoPlayerModal({
                 onTimeUpdate={
                   handleTimeUpdate
                 }
+                onPlay={
+                  handlePlay
+                }
                 onPause={
                   handlePause
                 }
@@ -611,10 +713,10 @@ export function VideoPlayerModal({
                 "seeking" && (
                 <div className="video-player-modal__overlay-message">
                   Seeking to{" "}
-                  {targetTimestamp.toFixed(
-                    3,
+                  {Math.round(
+                    targetTimestamp * 1000,
                   )}
-                  s...
+                  {" ms..."}
                 </div>
               )}
             </section>
@@ -638,10 +740,18 @@ export function VideoPlayerModal({
                 </span>
 
                 <strong>
-                  {formatPlaybackTime(
-                    actualSeekTime,
-                  )}
+                  {currentTimestampMs !== null
+                    ? `${currentTimestampMs} ms`
+                    : "—"}
                 </strong>
+
+                {actualSeekTime !== null && (
+                  <small>
+                    {formatPlaybackTime(
+                      actualSeekTime,
+                    )}
+                  </small>
+                )}
               </div>
 
               <div>
@@ -770,6 +880,61 @@ export function VideoPlayerModal({
               </div>
 
               <div className="video-player-modal__footer-actions">
+                {onSubmitCurrentFrame && (
+                  <button
+                    type="button"
+                    disabled={
+                      !canSubmitCurrentFrame
+                    }
+                    title={
+                      currentTimestampMs !==
+                        null
+                        ? `${result.video_id} · ${currentTimestampMs} ms`
+                        : "Pause the video to submit the current frame."
+                    }
+                    onClick={() =>
+                      void submitCurrentFrame()
+                    }
+                  >
+                    {isSubmittingCurrentFrame
+                      ? "Submitting..."
+                      : alreadySubmittedCurrentFrame
+                        ? `Submitted ✓ · ${currentTimestampMs} ms`
+                        : isPaused &&
+                            currentTimestampMs !==
+                              null
+                          ? `Submit · ${currentTimestampMs} ms`
+                          : "Pause to submit"}
+                  </button>
+                )}
+
+                {onUseCurrentFrameForQa && (
+                  <button
+                    type="button"
+                    disabled={
+                      !canUseCurrentFrameForQa
+                    }
+                    title={
+                      currentTimestampMs !== null
+                        ? `${result.video_id} · ${currentTimestampMs} ms`
+                        : "Pause the video to use this frame for QA."
+                    }
+                    onClick={() => {
+                      if (
+                        currentTimestampMs !== null
+                      ) {
+                        onUseCurrentFrameForQa(
+                          currentTimestampMs,
+                        );
+                      }
+                    }}
+                  >
+                    {isPaused &&
+                    currentTimestampMs !== null
+                      ? `Use for QA · ${currentTimestampMs} ms`
+                      : "Pause for QA"}
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={
