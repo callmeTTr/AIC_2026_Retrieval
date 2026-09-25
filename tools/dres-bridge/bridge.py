@@ -143,7 +143,24 @@ def release_submission(
         pending_submission_keys.discard(
             submission_key,
         )
+def dres_submission_was_processed(
+    response_ok: bool,
+    result,
+):
+    if not response_ok:
+        return False
 
+    if (
+        isinstance(result, dict)
+        and "status" in result
+    ):
+        return result.get("status") is True
+
+    # A 2xx response without an explicit DRES
+    # status is treated as delivered. Blocking an
+    # identical retry is safer than risking a
+    # duplicate competition submission.
+    return True
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -456,7 +473,6 @@ def submit(
                 "answers": [
                     {
                         "mediaItemName": media_item_name,
-                        "mediaItemCollectionName": payload.media_item_collection_name,
                         "start": start_ms,
                         "end": end_ms
                     }
@@ -513,17 +529,6 @@ def submit(
             detail=str(e),
         ) from e
 
-    if r.ok:
-        mark_submission_sent(
-            submission_key,
-        )
-    else:
-        # Authentication/task/server errors should
-        # not permanently poison this answer.
-        release_submission(
-            submission_key,
-        )
-
     try:
         result = r.json()
     except ValueError:
@@ -531,8 +536,30 @@ def submit(
             "raw_response": r.text
         }
 
+    dres_processed = (
+        dres_submission_was_processed(
+            r.ok,
+            result,
+        )
+    )
+
+    if dres_processed:
+        mark_submission_sent(
+            submission_key,
+        )
+    else:
+        # Explicit DRES rejection / invalid payload
+        # must not permanently poison this answer.
+        release_submission(
+            submission_key,
+        )
+
     return {
-        "status": "ok" if r.ok else "error",
+        "status": (
+            "ok"
+            if dres_processed
+            else "error"
+        ),
         "dres_http_status": r.status_code,
         "task": task_name,
         "submitted": {
@@ -665,7 +692,21 @@ def submit_qa(
             detail=str(e),
         ) from e
 
-    if r.ok:
+    try:
+        result = r.json()
+    except ValueError:
+        result = {
+            "raw_response": r.text
+        }
+
+    dres_processed = (
+        dres_submission_was_processed(
+            r.ok,
+            result,
+        )
+    )
+
+    if dres_processed:
         mark_submission_sent(
             submission_key,
         )
@@ -674,15 +715,12 @@ def submit_qa(
             submission_key,
         )
 
-    try:
-        result = r.json()
-    except ValueError:
-        result = {
-            "raw_response": r.text
-        }
-
     return {
-        "status": "ok" if r.ok else "error",
+        "status": (
+            "ok"
+            if dres_processed
+            else "error"
+        ),
         "dres_http_status": r.status_code,
         "task": task_name,
         "submitted": {
@@ -824,7 +862,21 @@ def submit_trake(
             detail=str(e),
         ) from e
 
-    if r.ok:
+    try:
+        result = r.json()
+    except ValueError:
+        result = {
+            "raw_response": r.text
+        }
+
+    dres_processed = (
+        dres_submission_was_processed(
+            r.ok,
+            result,
+        )
+    )
+
+    if dres_processed:
         mark_submission_sent(
             submission_key,
         )
@@ -833,15 +885,12 @@ def submit_trake(
             submission_key,
         )
 
-    try:
-        result = r.json()
-    except ValueError:
-        result = {
-            "raw_response": r.text
-        }
-
     return {
-        "status": "ok" if r.ok else "error",
+        "status": (
+            "ok"
+            if dres_processed
+            else "error"
+        ),
         "dres_http_status": r.status_code,
         "task": task_name,
         "submitted": {

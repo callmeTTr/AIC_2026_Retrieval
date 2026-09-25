@@ -5,8 +5,8 @@ import {
   getDresEvaluations,
   loginToDres,
   logoutFromDres,
-  startDresTask,
   type DresCurrentTask,
+  type DresEvaluation,
   type DresSubmissionModeSetting,
 } from "./dres.api";
 
@@ -53,13 +53,14 @@ export function DresConnectionPanel({
 
   const [currentTaskName, setCurrentTaskName] =
     useState("");
-
+  const [
+    activeEvaluations,
+    setActiveEvaluations,
+  ] = useState<DresEvaluation[]>([]);
   const [isConnecting, setIsConnecting] =
     useState(false);
 
   const [isSavingRun, setIsSavingRun] =
-    useState(false);
-  const [isStartingTask, setIsStartingTask] =
     useState(false);
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
@@ -131,27 +132,23 @@ export function DresConnectionPanel({
     const savedToken =
       getDresBridgeToken().trim();
 
-    if (!savedRunId || !savedToken) {
+    if (!savedToken) {
       return;
     }
 
     let cancelled = false;
 
-    void validateRun(
-      savedRunId,
+    void getDresEvaluations(
       savedToken,
     )
-      .then((task) => {
+      .then((response) => {
         if (cancelled) {
           return;
         }
 
-        setCurrentTaskName(
-          task?.name ?? "",
+        setActiveEvaluations(
+          response.active_evaluations,
         );
-
-        onCurrentTaskChange(task);
-        setHasValidatedRun(true);
       })
       .catch((error) => {
         if (cancelled) {
@@ -161,14 +158,22 @@ export function DresConnectionPanel({
         const message =
           error instanceof Error
             ? error.message
-            : "Unable to validate DRES session.";
+            : "Unable to load active DRES evaluations.";
+
+        const normalizedMessage =
+          message.toLowerCase();
 
         if (
-          message ===
-          "DRES session expired. Please reconnect."
+          normalizedMessage.includes(
+            "invalid bridge token",
+          ) ||
+          normalizedMessage.includes(
+            "session expired",
+          )
         ) {
           clearDresSession();
           setBridgeToken("");
+          setActiveEvaluations([]);
           setCurrentTaskName("");
           onCurrentTaskChange(null);
           setHasValidatedRun(false);
@@ -176,6 +181,49 @@ export function DresConnectionPanel({
 
         setErrorMessage(message);
       });
+
+    if (savedRunId) {
+      void validateRun(
+        savedRunId,
+        savedToken,
+      )
+        .then((task) => {
+          if (cancelled) {
+            return;
+          }
+
+          setCurrentTaskName(
+            task?.name ?? "",
+          );
+
+          onCurrentTaskChange(task);
+          setHasValidatedRun(true);
+        })
+        .catch((error) => {
+          if (cancelled) {
+            return;
+          }
+
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unable to validate DRES session.";
+
+          if (
+            message ===
+            "DRES session expired. Please reconnect."
+          ) {
+            clearDresSession();
+            setBridgeToken("");
+            setActiveEvaluations([]);
+            setCurrentTaskName("");
+            onCurrentTaskChange(null);
+            setHasValidatedRun(false);
+          }
+
+          setErrorMessage(message);
+        });
+    }
 
     return () => {
       cancelled = true;
@@ -202,42 +250,75 @@ export function DresConnectionPanel({
         password,
       );
 
-      let resolvedRunId = requestedRunId;
+      const evaluationResponse =
+        await getDresEvaluations(
+          response.access_token,
+        );
+
+      const active =
+        evaluationResponse.active_evaluations;
+
+      setActiveEvaluations(active);
+
+      const authenticatedUsername =
+        response.username ??
+        normalizedUsername;
+
+      setDresBridgeToken(
+        response.access_token,
+      );
+
+      setDresUsername(
+        authenticatedUsername,
+      );
+
+      setUsername(
+        authenticatedUsername,
+      );
+
+      setBridgeToken(
+        response.access_token,
+      );
+
+      let resolvedRunId =
+        requestedRunId;
 
       if (!resolvedRunId) {
-        const evaluationResponse =
-          await getDresEvaluations(
-            response.access_token,
-          );
-
-        if (
-          evaluationResponse.active_evaluations
-            .length === 0
-        ) {
+        if (active.length === 0) {
           throw new Error(
             "No active DRES evaluation was found. Enter a Run ID manually if needed.",
           );
         }
 
-        if (
-          evaluationResponse.active_evaluations
-            .length > 1
-        ) {
-          throw new Error(
-            "Multiple active DRES evaluations were found. Enter the Run ID manually.",
-          );
+        if (active.length === 1) {
+          resolvedRunId = String(
+            active[0].id ?? "",
+          ).trim();
         }
 
-        resolvedRunId = String(
-          evaluationResponse.active_evaluations[0]
-            .id ?? "",
-        ).trim();
+        if (active.length > 1) {
+          setDresRunId("");
+          setRunId("");
+          setCurrentTaskName("");
 
-        if (!resolvedRunId) {
-          throw new Error(
-            "The active DRES evaluation has no ID.",
+          onCurrentTaskChange(null);
+          onSubmissionModeSettingChange(
+            "AUTO",
           );
+
+          setHasValidatedRun(false);
+
+          // Password is intentionally never stored.
+          setPassword("");
+
+          return;
         }
+      }
+
+      if (!resolvedRunId) {
+        throw new Error(
+          "The active DRES evaluation has no ID.",
+        );
       }
 
       const task = await validateRun(
@@ -246,22 +327,17 @@ export function DresConnectionPanel({
       );
 
       setDresRunId(resolvedRunId);
-      setDresBridgeToken(response.access_token);
-      setDresUsername(
-        response.username ?? normalizedUsername,
-      );
-
       setRunId(resolvedRunId);
-      setUsername(
-        response.username ?? normalizedUsername,
-      );
-      setBridgeToken(response.access_token);
+
       setCurrentTaskName(
         task?.name ?? "",
       );
 
       onCurrentTaskChange(task);
-      onSubmissionModeSettingChange("AUTO");
+      onSubmissionModeSettingChange(
+        "AUTO",
+      );
+
       setHasValidatedRun(true);
 
       // Password is intentionally never stored.
@@ -290,6 +366,7 @@ export function DresConnectionPanel({
     } finally {
       clearDresSession();
       setBridgeToken("");
+      setActiveEvaluations([]);
       setCurrentTaskName("");
       onCurrentTaskChange(null);
       onSubmissionModeSettingChange("AUTO");
@@ -298,7 +375,61 @@ export function DresConnectionPanel({
       setErrorMessage(null);
     }
   }
+  async function handleSelectActiveEvaluation(
+    evaluationId: string,
+  ) {
+    const normalizedRunId =
+      evaluationId.trim();
 
+    if (!normalizedRunId) {
+      return;
+    }
+
+    if (!bridgeToken) {
+      setErrorMessage(
+        "DRES is not connected.",
+      );
+      return;
+    }
+
+    setIsSavingRun(true);
+    setErrorMessage(null);
+
+    try {
+      const task = await validateRun(
+        normalizedRunId,
+        bridgeToken,
+      );
+
+      setDresRunId(
+        normalizedRunId,
+      );
+
+      setRunId(
+        normalizedRunId,
+      );
+
+      setCurrentTaskName(
+        task?.name ?? "",
+      );
+
+      onCurrentTaskChange(task);
+
+      onSubmissionModeSettingChange(
+        "AUTO",
+      );
+
+      setHasValidatedRun(true);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to switch DRES evaluation.",
+      );
+    } finally {
+      setIsSavingRun(false);
+    }
+  }
   async function handleSaveRunId() {
     const normalizedRunId = runId.trim();
 
@@ -340,79 +471,6 @@ export function DresConnectionPanel({
       );
     } finally {
       setIsSavingRun(false);
-    }
-  }
-  async function handleStartTask() {
-    const normalizedRunId =
-      runId.trim();
-
-    if (!normalizedRunId) {
-      setErrorMessage(
-        "Run ID is required.",
-      );
-      return;
-    }
-
-    if (!bridgeToken) {
-      setErrorMessage(
-        "DRES is not connected.",
-      );
-      return;
-    }
-
-    setIsStartingTask(true);
-    setErrorMessage(null);
-
-    try {
-      await startDresTask(
-        normalizedRunId,
-        bridgeToken,
-      );
-
-      const task =
-        await validateRun(
-          normalizedRunId,
-          bridgeToken,
-        );
-
-      setDresRunId(normalizedRunId);
-      setCurrentTaskName(
-        task?.name ?? "",
-      );
-
-      onCurrentTaskChange(task);
-      setHasValidatedRun(true);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Unable to start DRES task.";
-
-      const normalizedMessage =
-        message.toLowerCase();
-
-      if (
-        normalizedMessage.includes(
-          "invalid bridge token",
-        ) ||
-        normalizedMessage.includes(
-          "session expired",
-        )
-      ) {
-        clearDresSession();
-        setBridgeToken("");
-        setCurrentTaskName("");
-        onCurrentTaskChange(null);
-        setHasValidatedRun(false);
-
-        setErrorMessage(
-          "DRES session expired. Please reconnect.",
-        );
-      } else {
-        setErrorMessage(message);
-      }
-    } finally {
-      setIsStartingTask(false);
     }
   }
   return (
@@ -458,15 +516,52 @@ export function DresConnectionPanel({
               </div>
             )
           )}
+          {activeEvaluations.length > 0 && (
+            <label className="dres-panel__field">
+              <span>Active evaluation</span>
+
+              <select
+                value={
+                  activeEvaluations.some(
+                    (evaluation) =>
+                      String(
+                        evaluation.id,
+                      ) === runId
+                  )
+                    ? runId
+                    : ""
+                }
+                disabled={isSavingRun}
+                onChange={(event) =>
+                  void handleSelectActiveEvaluation(
+                    event.target.value,
+                  )
+                }
+              >
+                <option value="">
+                  Select active evaluation
+                </option>
+
+                {activeEvaluations.map(
+                  (evaluation) => (
+                    <option
+                      key={evaluation.id}
+                      value={evaluation.id}
+                    >
+                      {evaluation.name ??
+                        evaluation.id}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+          )}
           <label className="dres-panel__field">
             <span>Submission mode</span>
 
             <select
               value={submissionModeSetting}
-              disabled={
-                isSavingRun ||
-                isStartingTask
-              }
+              disabled={isSavingRun}
               onChange={(event) =>
                 onSubmissionModeSettingChange(
                   event.target
@@ -489,37 +584,22 @@ export function DresConnectionPanel({
             </select>
           </label>
           <label className="dres-panel__field">
-            <span>Run ID (optional)</span>
+            <span>Run ID (manual fallback)</span>
 
             <input
               value={runId}
               onChange={(event) =>
                 setRunId(event.target.value)
               }
-              placeholder="Leave blank to auto-detect active evaluation"
+              placeholder="Manual evaluation ID"
             />
           </label>
 
           <div className="dres-panel__actions">
-            <button
-              type="button"
-              disabled={
-                isSavingRun ||
-                isStartingTask
-              }
-              onClick={handleStartTask}
-            >
-              {isStartingTask
-                ? "Starting..."
-                : "Start task"}
-            </button>
 
             <button
               type="button"
-              disabled={
-                isSavingRun ||
-                isStartingTask
-              }
+              disabled={isSavingRun}
               onClick={handleSaveRunId}
             >
               {isSavingRun
@@ -529,10 +609,7 @@ export function DresConnectionPanel({
 
             <button
               type="button"
-              disabled={
-                isSavingRun ||
-                isStartingTask
-              }
+              disabled={isSavingRun}
               onClick={handleDisconnect}
             >
               Disconnect

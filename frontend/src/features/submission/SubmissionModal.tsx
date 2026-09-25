@@ -103,6 +103,11 @@ export function SubmissionModal({
       ? submissionMutation.error.message
       : "The submission could not be completed.";
 
+  const submissionWasAccepted =
+    submissionMutation.isSuccess &&
+    submissionMutation.data.status ===
+      "accepted";
+
   return (
     <div
       className="submission-modal__overlay"
@@ -140,12 +145,23 @@ export function SubmissionModal({
         <div className="submission-modal__body">
           {submissionMutation.isSuccess ? (
             <div className="submission-modal__state">
-              <CheckCircle2
-                className="submission-modal__state-icon submission-modal__state-icon--success"
-                size={44}
-              />
+              {submissionWasAccepted ? (
+                <CheckCircle2
+                  className="submission-modal__state-icon submission-modal__state-icon--success"
+                  size={44}
+                />
+              ) : (
+                <AlertCircle
+                  className="submission-modal__state-icon"
+                  size={44}
+                />
+              )}
 
-              <h3>Submission sent</h3>
+              <h3>
+                {submissionWasAccepted
+                  ? "Submission accepted"
+                  : "Submission rejected"}
+              </h3>
 
               <p>
                 {
