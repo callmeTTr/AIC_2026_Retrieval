@@ -15,7 +15,9 @@ import {
 import {
   resolveBackendUrl,
 } from "../../services/apiClient";
-
+import {
+  getOriginalVideoUrl,
+} from "../../services/videoUrl";
 import type {
   SearchResult,
 } from "../search/search.types";
@@ -184,10 +186,10 @@ export function VideoPlayerModal({
 
   const videoUrl = useMemo(
     () =>
-      resolveBackendUrl(
-        result.video_url,
+      getOriginalVideoUrl(
+        result.video_id,
       ),
-    [result.video_url],
+    [result.video_id],
   );
 
   const posterUrl = useMemo(
@@ -199,7 +201,6 @@ export function VideoPlayerModal({
   );
 
   const missingVideo =
-    !result.video_available ||
     !videoUrl;
 
   useEffect(() => {
@@ -248,7 +249,7 @@ export function VideoPlayerModal({
   }, [
     result.video_id,
     result.timestamp_seconds,
-    result.video_url,
+    videoUrl,
   ]);
 
   function handleBackdropClick(
@@ -652,11 +653,11 @@ export function VideoPlayerModal({
               </strong>
 
               <p>
-                Backend chưa map được{" "}
+                Không thể tạo video URL cho{" "}
                 <code>
                   {result.video_id}
-                </code>{" "}
-                với video gốc.
+                </code>
+                .
               </p>
             </div>
           </section>

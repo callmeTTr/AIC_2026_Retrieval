@@ -20,6 +20,9 @@ import {
   setTeamRoomCode,
   setTeamUsername,
 } from "./team-workspace.session";
+import {
+  getOriginalVideoUrl,
+} from "../../services/videoUrl";
 import "./TeamRoomPanel.css";
 
 
@@ -403,7 +406,12 @@ export function TeamRoomPanel({
       ),
     );
   }
-
+  const previewVideoUrl =
+    previewItem
+      ? getOriginalVideoUrl(
+          previewItem.video_id,
+        )
+      : "";
 
   return (
     <section
@@ -741,11 +749,11 @@ export function TeamRoomPanel({
 
             <div className="team-room-preview__media">
               {previewMode === "video" &&
-              previewItem.video_url ? (
+              previewVideoUrl ? (
                 <video
                   key={previewItem.id}
                   src={
-                    previewItem.video_url
+                    previewVideoUrl
                   }
                   poster={
                     previewItem.frame_url ??
@@ -828,7 +836,7 @@ export function TeamRoomPanel({
               <button
                 type="button"
                 disabled={
-                  !previewItem.video_url
+                  !previewVideoUrl
                 }
                 className={
                   previewMode === "video"
