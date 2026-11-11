@@ -1,9 +1,13 @@
 import {
   Bookmark,
+  CheckCircle2,
+  CircleHelp,
   Images,
   Maximize2,
   Play,
+  ScanSearch,
   Send,
+  ShieldX,
   Sparkles,
   VideoOff,
 } from "lucide-react";
@@ -15,6 +19,14 @@ import {
 import type {
   SearchResult,
 } from "../search/search.types";
+
+import type {
+  VerificationSummary,
+} from "../verification/verification.types";
+
+import type {
+  VerificationQueueItem,
+} from "../verification/useVerificationQueue";
 
 import "./ResultCard.css";
 
@@ -62,6 +74,10 @@ interface ResultCardProps {
   canRefineSearch: boolean;
   isCandidateSelected: boolean;
   onToggleCandidate: () => void;
+  canVerify: boolean;
+  onInspectEvidence: () => void;
+  verificationSummary?: VerificationSummary;
+  verificationQueueItem?: VerificationQueueItem;
 }
 
 export function ResultCard({
@@ -74,31 +90,35 @@ export function ResultCard({
   canRefineSearch,
   isCandidateSelected,
   onToggleCandidate,
+  canVerify,
+  onInspectEvidence,
+  verificationSummary,
+  verificationQueueItem,
 }: ResultCardProps) {
-const frameTimeSeconds =
-  typeof result.frame_timestamp_seconds ===
-    "number" &&
-  Number.isFinite(
-    result.frame_timestamp_seconds,
-  )
-    ? result.frame_timestamp_seconds
-    : result.fps &&
-        result.fps > 0
-      ? result.frame_index /
-        result.fps
-      : result.timestamp_seconds;
+  const frameTimeSeconds =
+    typeof result.frame_timestamp_seconds ===
+      "number" &&
+    Number.isFinite(
+      result.frame_timestamp_seconds,
+    )
+      ? result.frame_timestamp_seconds
+      : result.fps &&
+          result.fps > 0
+        ? result.frame_index /
+          result.fps
+        : result.timestamp_seconds;
 
-const thumbnailUrl =
-  resolveBackendUrl(
-    result.thumbnail_url,
-  );
+  const thumbnailUrl =
+    resolveBackendUrl(
+      result.thumbnail_url,
+    );
 
-const frameUrl =
-  resolveBackendUrl(
-    result.frame_url,
-  );
+  const frameUrl =
+    resolveBackendUrl(
+      result.frame_url,
+    );
 
-const videoTitle =
+  const videoTitle =
     result.video_available
       ? `Open ${result.video_id} at ${Math.round(
           frameTimeSeconds * 1000,
@@ -110,6 +130,34 @@ const videoTitle =
     Boolean(
       result.frame_ref?.trim(),
     );
+
+  const verificationClass =
+    verificationSummary
+      ? `result-card__verification-status--${verificationSummary.status.toLowerCase()}`
+      : "";
+
+  const verificationIcon =
+    verificationSummary?.status === "SUPPORTED" ? (
+      <CheckCircle2 size={15} />
+    ) : verificationSummary?.status === "CONFLICT" ? (
+      <ShieldX size={15} />
+    ) : verificationSummary?.status === "UNKNOWN" ? (
+      <CircleHelp size={15} />
+    ) : (
+      <ScanSearch size={15} />
+    );
+
+  const isVerificationQueued =
+    verificationQueueItem?.status === "submitting" ||
+    verificationQueueItem?.status === "pending" ||
+    verificationQueueItem?.status === "running";
+
+  const verificationButtonLabel =
+    verificationSummary
+      ? "Review verification"
+      : isVerificationQueued
+        ? "Pending verification"
+        : "Queue verification";
 
   return (
     <article className="result-card">
@@ -287,22 +335,74 @@ const videoTitle =
           </div>
         </dl>
 
-        <button
-          type="button"
-          className="result-card__refine-button"
-          disabled={!canRefine}
-          title={
-            !canRefineSearch
-              ? "OCR-only results cannot be used for refinement"
-              : canRefine
-                ? "Refine results from this frame"
-                : "Run a new feedback-ready search before refining"
-          }
-          onClick={onRefine}
-        >
-          <Sparkles size={16} />
-          Refine from this frame
-        </button>
+        {verificationSummary && (
+          <div
+            className={[
+              "result-card__verification-status",
+              verificationClass,
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {verificationIcon}
+            <strong>
+              {verificationSummary.status}
+            </strong>
+            <span>
+              {Math.round(
+                verificationSummary.confidence * 100,
+              )}%
+            </span>
+          </div>
+        )}
+
+        <div className="result-card__workflow-actions">
+          <button
+            type="button"
+            className={[
+              "result-card__verify-button",
+              isVerificationQueued
+                ? "result-card__verify-button--pending"
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            disabled={
+              !canVerify ||
+              isVerificationQueued
+            }
+            title={
+              !canVerify
+                ? "Enter an Original verification intent and use a result with a live frame reference"
+                : isVerificationQueued
+                  ? "This candidate is already being verified in the background queue"
+                  : verificationSummary
+                    ? "Open the ORIVA verification detail view"
+                    : "Add this candidate to the independent verification queue"
+            }
+            onClick={onInspectEvidence}
+          >
+            {verificationIcon}
+            {verificationButtonLabel}
+          </button>
+
+          <button
+            type="button"
+            className="result-card__refine-button"
+            disabled={!canRefine}
+            title={
+              !canRefineSearch
+                ? "OCR-only results cannot be used for refinement"
+                : canRefine
+                  ? "Refine results from this frame"
+                  : "Run a new feedback-ready search before refining"
+            }
+            onClick={onRefine}
+          >
+            <Sparkles size={16} />
+            Refine from this frame
+          </button>
+        </div>
       </div>
     </article>
   );

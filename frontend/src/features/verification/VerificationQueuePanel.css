@@ -1,0 +1,333 @@
+.verification-queue {
+  position: fixed;
+  z-index: 120;
+  right: 18px;
+  bottom: 18px;
+  width: min(420px, calc(100vw - 36px));
+  max-height: min(72vh, 720px);
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 97%);
+  box-shadow: 0 18px 48px rgb(15 23 42 / 18%);
+  backdrop-filter: blur(10px);
+}
+
+.verification-queue__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: #ffffff;
+  background: #172554;
+}
+
+.verification-queue__header > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verification-queue__header span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.verification-queue__header strong {
+  font-size: 14px;
+}
+
+.verification-queue__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verification-queue__header-actions button,
+.verification-queue__remove {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  color: inherit;
+  background: rgb(255 255 255 / 10%);
+  cursor: pointer;
+}
+
+.verification-queue__active-count {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.verification-queue__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.verification-queue__toolbar small {
+  max-width: 260px;
+  line-height: 1.35;
+}
+
+.verification-queue__toolbar button {
+  flex: 0 0 auto;
+  border: 0;
+  color: #2563eb;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.verification-queue__list {
+  max-height: calc(min(72vh, 720px) - 96px);
+  overflow-y: auto;
+}
+
+.verification-queue__item {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.verification-queue__item:last-child {
+  border-bottom: 0;
+}
+
+.verification-queue__item-main {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 11px 12px;
+}
+
+.verification-queue__item-main > img {
+  width: 72px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #e2e8f0;
+}
+
+.verification-queue__item-copy {
+  min-width: 0;
+}
+
+.verification-queue__item-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.verification-queue__item-title strong {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.verification-queue__item-title span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.verification-queue__stage {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.verification-queue__stage b {
+  margin-left: auto;
+}
+
+.verification-queue__stage--supported {
+  color: #15803d;
+}
+
+.verification-queue__stage--conflict {
+  color: #b91c1c;
+}
+
+.verification-queue__stage--unknown {
+  color: #a16207;
+}
+
+.verification-queue__item-copy > p {
+  display: -webkit-box;
+  margin: 5px 0 0;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.verification-queue__evidence-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.verification-queue__evidence-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #475569;
+  background: #f1f5f9;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.verification-queue__remove {
+  color: #64748b;
+  background: #f1f5f9;
+}
+
+.verification-queue__error {
+  margin: 0 12px 10px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  color: #b91c1c;
+  background: #fef2f2;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.verification-queue__completed-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px 10px 94px;
+}
+
+.verification-queue__completed-actions button {
+  border: 0;
+  color: #2563eb;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.verification-queue__completed-actions span {
+  color: #64748b;
+  font-size: 9px;
+}
+
+.verification-queue__details {
+  margin: 0 12px 12px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.verification-queue__explanation {
+  margin: 0 0 9px;
+  color: #334155;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.verification-queue__claims {
+  display: grid;
+  gap: 6px;
+}
+
+.verification-queue__claim {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 7px;
+  padding: 7px;
+  border-radius: 7px;
+  background: #ffffff;
+  font-size: 10px;
+}
+
+.verification-queue__claim strong {
+  grid-row: 1 / span 2;
+  font-size: 9px;
+}
+
+.verification-queue__claim span {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.verification-queue__claim small {
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.verification-queue__claim--supported strong {
+  color: #15803d;
+}
+
+.verification-queue__claim--conflict strong {
+  color: #b91c1c;
+}
+
+.verification-queue__claim--unknown strong {
+  color: #a16207;
+}
+
+.verification-queue__metadata-block {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.verification-queue__metadata-block strong {
+  color: #334155;
+  font-size: 10px;
+}
+
+.verification-queue__metadata-block p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.verification-queue__spin {
+  animation: verification-queue-spin 900ms linear infinite;
+}
+
+@keyframes verification-queue-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 720px) {
+  .verification-queue {
+    right: 10px;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+  }
+}

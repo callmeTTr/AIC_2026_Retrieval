@@ -2,6 +2,20 @@
 
 An interactive multimodal video retrieval system prepared for AIC 2026.
 
+## Collected ORIVA edition
+
+This edition combines the original project history with the local ORIVA UI V2
+updates. The changes are described in [IntentGuard verification](INTENTGUARD_VERIFICATION.md)
+and [ORIVA UI V2](UI_ORIVA_VERIFICATION_CHANGES_V2.md).
+
+The [ORIVA backend notebook](notebooks/kaggle/oriva-intentguard-backend.ipynb)
+contains the temporal localization and verification API used by that interface.
+Its outputs have been cleared, and its ngrok credential is read from the Kaggle
+Secret named `NGROK_AUTH_TOKEN`. The optional `NGROK_DOMAIN` environment variable
+selects a reserved tunnel domain. The local `backend/` remains the mock retrieval
+backend described below. Dataset mounts, model downloads and GPU execution of the
+notebook require the Kaggle environment.
+
 The project currently provides a complete mock retrieval workflow from the React interface to the FastAPI backend. Visual, OCR, and ASR retrieval modules are represented by deterministic adapters so the UI, orchestration, fusion, temporal layer, warning handling, media tools, and submission workflow can be developed before real retrieval modules are connected.
 
 ## Current Status

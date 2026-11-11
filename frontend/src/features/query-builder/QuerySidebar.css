@@ -258,3 +258,26 @@
   outline-offset: 2px;
   box-shadow: none;
 }
+
+.query-sidebar__original-intent {
+  padding: 10px 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.query-sidebar__original-intent label {
+  color: #1e3a8a;
+}
+
+.query-sidebar__original-intent textarea {
+  min-height: 72px;
+  background: #ffffff;
+}
+
+.query-sidebar__original-intent p {
+  margin: 7px 0 0;
+  color: #475569;
+  font-size: 10px;
+  line-height: 1.45;
+}

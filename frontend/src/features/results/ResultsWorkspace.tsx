@@ -15,6 +15,16 @@ import { SubmissionModal } from "../submission/SubmissionModal";
 import { TrakeSubmissionModal } from "../submission/TrakeSubmissionModal";
 import { submitResult } from "../submission/submission.api";
 import { VideoPlayerModal } from "../video-player/VideoPlayerModal";
+import { VerificationQueuePanel } from "../verification/VerificationQueuePanel";
+import { VerificationModal } from "../verification/VerificationModal";
+import {
+  useVerificationQueue,
+  verificationIntentKey,
+  type VerificationQueueItem,
+} from "../verification/useVerificationQueue";
+import type {
+  VerificationSummary,
+} from "../verification/verification.types";
 import {
   resolveBackendUrl,
 } from "../../services/apiClient";
@@ -68,6 +78,16 @@ function getCandidateTimestampSeconds(
   }
 
   return result.timestamp_seconds;
+}
+
+function getVerificationResultKey(
+  result: SearchResult,
+): string {
+  return [
+    result.video_id,
+    result.frame_index,
+    result.matched_scene,
+  ].join(":");
 }
 type ResultsViewMode =
   | "normal"
@@ -207,6 +227,7 @@ interface TrakeSubmissionTarget {
 
 interface ResultsWorkspaceProps {
   response?: SearchResponse;
+  originalVerificationIntent: string;
   currentDresTaskName: string;
   dresSubmissionMode: DresSubmissionMode;
   originalRequest?: SearchRequest;
@@ -220,6 +241,7 @@ interface ResultsWorkspaceProps {
 
 export function ResultsWorkspace({
   response,
+  originalVerificationIntent,
   currentDresTaskName,
   dresSubmissionMode,
   originalRequest,
@@ -260,6 +282,152 @@ export function ResultsWorkspace({
     videoResult,
     setVideoResult,
   ] = useState<SearchResult | null>(null);
+
+  const {
+    items: verificationQueueItems,
+    queueCandidate,
+    loadExplanation:
+      loadVerificationExplanation,
+    removeItem:
+      removeVerificationQueueItem,
+    clearFinished:
+      clearFinishedVerifications,
+    summaryByKey:
+      verificationQueueSummaryByKey,
+    stateByKey:
+      rawVerificationQueueStateByKey,
+  } = useVerificationQueue();
+
+  const [
+    verificationDetailItem,
+    setVerificationDetailItem,
+  ] = useState<VerificationQueueItem | null>(
+    null,
+  );
+
+  const verificationSummaryByKey =
+    useMemo<
+      Record<string, VerificationSummary>
+    >(() => {
+      const output:
+        Record<
+          string,
+          VerificationSummary
+        > = {};
+
+      if (!response) {
+        return output;
+      }
+
+      for (const result of response.results) {
+        const queueKey =
+          verificationIntentKey(
+            result.source_search_id ??
+              response.search_id,
+            result,
+            originalVerificationIntent,
+          );
+
+        const summary =
+          verificationQueueSummaryByKey[
+            queueKey
+          ];
+
+        if (summary) {
+          output[
+            getVerificationResultKey(
+              result,
+            )
+          ] = summary;
+        }
+      }
+
+      return output;
+    }, [
+      response,
+      originalVerificationIntent,
+      verificationQueueSummaryByKey,
+    ]);
+
+  const verificationQueueStateByKey =
+    useMemo(() => {
+      const output:
+        Record<
+          string,
+          (typeof verificationQueueItems)[number]
+        > = {};
+
+      if (!response) {
+        return output;
+      }
+
+      for (const result of response.results) {
+        const queueKey =
+          verificationIntentKey(
+            result.source_search_id ??
+              response.search_id,
+            result,
+            originalVerificationIntent,
+          );
+
+        const queueItem =
+          rawVerificationQueueStateByKey[
+            queueKey
+          ];
+
+        if (queueItem) {
+          output[
+            getVerificationResultKey(
+              result,
+            )
+          ] = queueItem;
+        }
+      }
+
+      return output;
+    }, [
+      response,
+      originalVerificationIntent,
+      verificationQueueItems,
+      rawVerificationQueueStateByKey,
+    ]);
+
+  function handleVerificationAction(
+    result: SearchResult,
+  ) {
+    if (!response) {
+      return;
+    }
+
+    const resultKey =
+      getVerificationResultKey(result);
+
+    const existingItem =
+      verificationQueueStateByKey[
+        resultKey
+      ];
+
+    if (
+      existingItem?.status ===
+        "completed" &&
+      existingItem.job
+        ?.verification
+    ) {
+      setVerificationDetailItem(
+        existingItem,
+      );
+      return;
+    }
+
+    void queueCandidate({
+      searchId:
+        result.source_search_id ??
+        response.search_id,
+      result,
+      originalQuery:
+        originalVerificationIntent,
+    });
+  }
 
   const [
     refinementResult,
@@ -1369,6 +1537,30 @@ export function ResultsWorkspace({
                 <ResultCard
                   key={`${result.video_id}-${result.frame_index}-${result.matched_scene}-${index}`}
                   result={result}
+                  canVerify={Boolean(
+                    result.frame_ref?.trim(),
+                  ) && Boolean(
+                    originalVerificationIntent.trim(),
+                  )}
+                  onInspectEvidence={() =>
+                    handleVerificationAction(
+                      result,
+                    )
+                  }
+                  verificationSummary={
+                    verificationSummaryByKey[
+                      getVerificationResultKey(
+                        result,
+                      )
+                    ]
+                  }
+                  verificationQueueItem={
+                    verificationQueueStateByKey[
+                      getVerificationResultKey(
+                        result,
+                      )
+                    ]
+                  }
                   onOpen={() =>
                     setSelectedResultIndex(
                       index,
@@ -1843,6 +2035,30 @@ export function ResultsWorkspace({
                   <ResultCard
                     key={`${result.video_id}-${result.frame_index}-${result.matched_scene}-${originalIndex}`}
                     result={result}
+                    canVerify={Boolean(
+                      result.frame_ref?.trim(),
+                    ) && Boolean(
+                      originalVerificationIntent.trim(),
+                    )}
+                    onInspectEvidence={() =>
+                      handleVerificationAction(
+                        result,
+                      )
+                    }
+                    verificationSummary={
+                      verificationSummaryByKey[
+                        getVerificationResultKey(
+                          result,
+                        )
+                      ]
+                    }
+                    verificationQueueItem={
+                      verificationQueueStateByKey[
+                        getVerificationResultKey(
+                          result,
+                        )
+                      ]
+                    }
                     onOpen={() =>
                       setSelectedResultIndex(
                         originalIndex,
@@ -2139,6 +2355,30 @@ export function ResultsWorkspace({
                               result={
                                 result
                               }
+                              canVerify={Boolean(
+                                result.frame_ref?.trim(),
+                              ) && Boolean(
+                                originalVerificationIntent.trim(),
+                              )}
+                              onInspectEvidence={() =>
+                                handleVerificationAction(
+                                  result,
+                                )
+                              }
+                              verificationSummary={
+                                verificationSummaryByKey[
+                                  getVerificationResultKey(
+                                    result,
+                                  )
+                                ]
+                              }
+                              verificationQueueItem={
+                                verificationQueueStateByKey[
+                                  getVerificationResultKey(
+                                    result,
+                                  )
+                                ]
+                              }
                               onOpen={() =>
                                 setSelectedResultIndex(
                                   originalIndex,
@@ -2225,6 +2465,66 @@ export function ResultsWorkspace({
           result={neighborResult}
           onClose={() =>
             setNeighborResult(null)
+          }
+        />
+      )}
+
+      <VerificationQueuePanel
+        items={verificationQueueItems}
+        onLoadExplanation={
+          loadVerificationExplanation
+        }
+        onReview={(item) =>
+          setVerificationDetailItem(
+            item,
+          )
+        }
+        onRemove={
+          removeVerificationQueueItem
+        }
+        onClearFinished={
+          clearFinishedVerifications
+        }
+      />
+
+      {verificationDetailItem && (
+        <VerificationModal
+          searchId={
+            verificationDetailItem.searchId
+          }
+          result={
+            verificationDetailItem.result
+          }
+          originalQuery={
+            verificationDetailItem.originalQuery
+          }
+          initialVerification={
+            verificationDetailItem.jobId &&
+            verificationDetailItem.job
+              ?.verification
+              ? {
+                  status:
+                    verificationDetailItem.job
+                      .verification.status,
+                  confidence:
+                    verificationDetailItem.job
+                      .verification.confidence,
+                  jobId:
+                    verificationDetailItem.jobId,
+                  numFramesSent:
+                    verificationDetailItem.job
+                      .verification
+                      .num_frames_sent,
+                  latencyMs:
+                    verificationDetailItem.job
+                      .verification.latency_ms,
+                }
+              : undefined
+          }
+          onClose={() =>
+            setVerificationDetailItem(
+              null,
+            )
           }
         />
       )}

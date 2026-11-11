@@ -19,3 +19,24 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local credentials and development environments
+.env
+.env.*
+!.env.example
+**/.venv/
+**/venv/
+**/node_modules/
+**/.ipynb_checkpoints/
+*.pem
+*.key
+
+# Local retrieval data and generated model artifacts
+*.faiss
+*.npy
+*.npz
+*.pt
+*.pth
+*.safetensors
+*.sqlite
+*.sqlite3

@@ -13,6 +13,10 @@ import "./QuerySidebar.css";
 
 interface QuerySidebarProps {
   onSearch: (value: QueryBuilderValue) => void;
+  originalVerificationIntent: string;
+  onOriginalVerificationIntentChange: (
+    value: string,
+  ) => void;
 }
 
 const VISUAL_MODEL_OPTIONS: Array<{
@@ -69,6 +73,8 @@ function isSceneEmpty(scene: QueryScene): boolean {
 
 export function QuerySidebar({
   onSearch,
+  originalVerificationIntent,
+  onOriginalVerificationIntentChange,
 }: QuerySidebarProps) {
   const [
     searchMode,
@@ -268,6 +274,29 @@ export function QuerySidebar({
           <h2>Query Builder</h2>
         </div>
       </div>
+
+      <section className="query-sidebar__original-intent">
+        <label htmlFor="original-verification-intent">
+          <span>Original verification intent</span>
+
+          <textarea
+            id="original-verification-intent"
+            value={originalVerificationIntent}
+            placeholder="Paste the original task query / what you truly want to verify..."
+            onChange={(event) =>
+              onOriginalVerificationIntentChange(
+                event.target.value,
+              )
+            }
+          />
+        </label>
+
+        <p>
+          Kept unchanged and never used to rank search results.
+          Selected candidates are verified against this intent in the
+          background using visual, OCR, and ASR evidence.
+        </p>
+      </section>
 
       <section className="query-sidebar__settings">
         <fieldset className="query-sidebar__model-selector">

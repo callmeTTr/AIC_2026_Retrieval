@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import {
@@ -60,6 +60,32 @@ export function AppShell() {
     originalRequest,
     setOriginalRequest,
   ] = useState<SearchRequest | null>(null);
+
+  const [
+    originalVerificationIntent,
+    setOriginalVerificationIntent,
+  ] = useState(() => {
+    try {
+      return (
+        window.localStorage.getItem(
+          "aic-original-verification-intent",
+        ) ?? ""
+      );
+    } catch {
+      return "";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "aic-original-verification-intent",
+        originalVerificationIntent,
+      );
+    } catch {
+      // Ignore storage errors in private / restricted browser modes.
+    }
+  }, [originalVerificationIntent]);
 
   const [
     activeResponse,
@@ -140,6 +166,9 @@ export function AppShell() {
             return actionResponse.results.map(
               (result) => ({
                 ...result,
+
+                source_search_id:
+                  actionResponse.search_id,
 
                 matched_scene:
                   scene.scene_id,
@@ -258,10 +287,19 @@ export function AppShell() {
       <div className="app-shell__content">
         <QuerySidebar
           onSearch={handleSearch}
+          originalVerificationIntent={
+            originalVerificationIntent
+          }
+          onOriginalVerificationIntentChange={
+            setOriginalVerificationIntent
+          }
         />
 
         <ResultsWorkspace
           response={activeResponse}
+          originalVerificationIntent={
+            originalVerificationIntent
+          }
           currentDresTaskName={
             currentDresTask?.name ?? ""
           }

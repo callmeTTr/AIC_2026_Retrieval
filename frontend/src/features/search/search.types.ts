@@ -58,6 +58,12 @@ export interface SearchResult {
   rank: number;
   video_id: string;
 
+  /**
+   * Real backend search session that produced this result.
+   * Needed when the frontend combines several TRAKE searches into one view.
+   */
+  source_search_id?: string;
+
   frame_index: number;
 
   /**
